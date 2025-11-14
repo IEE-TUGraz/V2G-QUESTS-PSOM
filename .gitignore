@@ -3,7 +3,7 @@ config.yml
 
 # Local only files required for plotting
 plot_config.yml
-plot_config_template.yml
+
 
 # Python bytecode files
 __pycache__/

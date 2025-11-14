@@ -1,0 +1,129 @@
+input_type: V2G # excel or sqlite
+input_dir: PATH_TO_OUTPUT_DIR
+
+tables:
+  - k
+  - i
+  - la
+  - vLineP
+  - pPmax_line
+  - lat
+  - lon
+  - PV_Buses
+  - Wind_Buses
+  - vProd_PV
+  - vProd_Wind
+  - vProd_Hydro
+  - vDch_Batt
+
+dropdown_options_y:
+  - label: "Y: Dispatch"
+    value: "dispatch"
+  - label: "Y: Power Flow"
+    value: "power_flow"
+  - label: "Y: Demand"
+    value: "demand"
+
+dropdown_options_x:
+  - label: "X: Time"
+    value: "time"
+  - label: "X: Generator"
+    value: "generator"
+  - label: "X: Line"
+    value: "line"
+
+map_options:
+  line_weight: 2
+  default_zoom: 5
+  arrow_zoom_scale: 0.5
+  arrow_min_size: 0.5
+  pie_chart_min_radius: 8
+  pie_chart_max_radius: 16
+
+  technology_colors:
+    Wind: "#2ecc71"
+    Solar: "#27ae60"
+    OtherRES: "#1e8449"
+    Offshore: "#145a32"
+    CSP: "#117a65"
+    Coal: "#c0392b"
+    Gas: "#e74c3c"
+    Oil: "#a93226"
+    OtherNoRES: "#922b21"
+    Nuclear: "#7b241c"
+    HS: "#3498db"
+    HPS: "#2e86c1"
+    RoR: "#21618c"
+    BESS: "#7f8c8d"
+    V2G_charging: "#8e44ad"
+    V2G_discharging: "#9b59b6"
+    unknown: "#808080"
+    no_generation: "#000000"
+    vres: "#2ecc71"
+    thermal: "#c0392b"
+    storage: "#7f8c8d"
+  
+  cluster_options:
+    cluster_radius: 60
+    maxZoom: 16
+
+
+graph_options:
+  graph_save_options:
+    toImageButtonOptions:
+      format: svg
+      filename: custom_image
+      height: 500
+      width: 700
+      scale: 1
+
+  layout:
+    xaxis:
+      domain: [0, 0.85]
+      title:
+        font:
+          size: 18
+          color: black
+    yaxis:
+      domain: [0, 1]
+      title:
+        font:
+          size: 18
+          color: black
+    legend:
+      x: 0.85
+      y: 1
+      xanchor: left
+      yanchor: top
+    margin:
+      l: 0
+      r: 40
+      t: 40
+      b: 40
+    paper_bgcolor: "#E1EDED"
+    plot_bgcolor: "#E1EDED"
+    font:
+      size: 14
+    title:
+      x: 0.5
+  colors:
+  - "#2E86AB"
+  - "#F6C85F"
+  - "#6F4E7C"
+  - "#9FD356"
+  - "#CA3E47"
+  - "#FFA600"
+  - "#50514F"
+  - "#8E44AD"
+  - "#00B894"
+  - "#E17055"
+  - "#D63031"
+  - "#00A8FF"
+  - "#FAB1A0"
+  - "#6C5CE7"
+  - "#E84393"
+  - "#55EFC4"
+  - "#A29BFE"
+  - "#FD79A8"
+  - "#81ECEC"
+  - "#0984E3"

@@ -17,7 +17,7 @@ slack_bus: Node_67 # Sets the slack bus of the network. Node_67 for Kanaleneilan
 enable_pv: true
 enable_wind: false
 enable_hydro: false
-pBatt_cap: 0 # Total decentral Storage Capacity for the region in kWh
+pBatt_cap: 8 # Total decentral Storage Capacity for the region in kWh
 
 # Electric Vehicle configuration
 pCharge_Invest: 1.3 # Public charger invest per EV in kW
