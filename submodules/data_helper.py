@@ -771,7 +771,7 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     ValueError
         If the case study is not recognized or required columns are missing.
     """
-    line_parameters_filepath = r"C:\GIT\V2G-QUESTS\data_preparation\standard_line_parameters.xlsx"
+    line_parameters_filepath = r"data_preparation\standard_line_parameters.xlsx"
     parameter_filepath = os.path.join('case_studies', 'standard_parameter.yml')
     parameter = load_config(parameter_filepath)
     standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')

@@ -1385,4 +1385,4 @@ if __name__ == '__main__':
         v2g.create_model() # Create the Pyomo model
         v2g.solve_model() # Solve the Pyomo model
         v2g.export_results() # Export the results to a SQLite database
-        v2g.plot_network() # Plot the network with the result data. Not available in the public version
+        # v2g.plot_network() # Plot the network with the result data. Not available in the public version
