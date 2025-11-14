@@ -1,0 +1,21 @@
+name: V2G-QUESTS_PSOM
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # Core environment
+  - python=3.12.2
+  - numpy
+  - pandas=2.2.3
+  - pyomo
+  - plotly
+  - pyyaml=6.0.2
+  - openpyxl=3.1.5
+  - geopy
+  - pip  # needed for pip installs below
+  # Sphinx core and extensions
+  - sphinx=8.2.3
+  # Everything that is not available on conda
+  - pip:
+      - sphinx_rtd_theme
+

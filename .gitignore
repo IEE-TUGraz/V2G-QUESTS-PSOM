@@ -1,0 +1,24 @@
+# Local only files (will be created on first run and should be adjusted locally)
+config.yml
+
+# Local only files required for plotting
+plot_config.yml
+plot_config_template.yml
+
+# Python bytecode files
+__pycache__/
+*.py[cod]
+
+# Dash files
+assets/
+
+# Sphinxc build files
+_sources/
+_static/
+.doctrees
+docs/
+output/
+
+# IDE files
+.idea/
+

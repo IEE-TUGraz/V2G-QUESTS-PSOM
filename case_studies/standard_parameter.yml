@@ -1,0 +1,19 @@
+# Standard parameters for power system components
+#  Angle limits are in degrees, voltage limits are in per unit (p.u.)
+Min_Ang: -90 # Minimum angle of the nodes in degrees
+Max_Ang: 90 # Minimum and maximum angle of the nodes in degrees
+Max_AngDiff: 60 # Maximum angle difference between connected nodes in degrees
+Vmax: 1.1 # Upper voltage limit of the nodes in per unit
+Vmin: 0.9 # Lower voltage limit of the nodes in per unit
+
+# Shunt parameters of the nodes
+Gs: 0 # Conductance of the shunt elements
+Bs: 0 # Susceptance of the shunt elements
+
+# Battery parameters
+eta_ch_batt: 0.95 # Battery charge efficiency
+eta_dch_batt: 0.98 # Battery discharge efficiency
+DoD_batt: 0.2 # Depth of Discharge of the battery as a fraction of total capacity
+SoC_init_batt: 0.2 # Initial state of charge of the battery as a fraction of total capacity
+C_rate_batt: 1 # C-rate of 1 means the battery can be fully charged or discharged in 1 hour
+

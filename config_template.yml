@@ -1,0 +1,31 @@
+# Solver Options
+enable_rMIP: true # Enable or disable the relaxed MIP formulation and solving of the model true/false
+MIP_Gap : 0.0001 # MIP optimality gap for the solver (e.g.: 0.0001 = 0.10%)
+
+# Scenario configuration
+case_study: Kanaleneiland # Kanaleneiland, Aradas, Annelinn
+LEGO_GPT_path: path to LEGO_GPT.py  # LEGO GPT is not part of the public repository
+LEGO_GPT_env_path: path to LEGO_GPT_env (python.exe) # LEGO GPT is not part of the public repository
+start_t: 0 # Start time of the scenario
+num_t: 48 # Number of time steps in the scenario
+year: 2040 # 2035, 2040 or 2050 # For the V2G scenarios only 2040 was considered
+
+# Grid configuration
+dc_opf: true # True for DC OPF, False for AC OPF
+slack_bus: Node_67 # Sets the slack bus of the network. Node_67 for Kanaleneiland, Node_20 for Aradas, Node_43 for Annelinn
+# Enable or disable generation sources true/false
+enable_pv: true
+enable_wind: false
+enable_hydro: false
+pBatt_cap: 0 # Total decentral Storage Capacity for the region in kWh
+
+# Electric Vehicle configuration
+pCharge_Invest: 1.3 # Public charger invest per EV in kW
+
+# SOCP relaxation configuration
+pQfactor: 0.1 # Power to reactive power demand factor for SOCP relaxation as there are no reactive power demand parameters available
+pV_slack: 1.1 # Voltage at the slack bus in p.u. for SOCP relaxation
+
+# Cost factors
+pPenality: 10000 # Penality cost factor for power non served and excess power served in €/MWh applied fpr node and EV slack variables
+pCh_Inf_Cost: 1 # Cost factor for each installed charging infrastructure in €/MW (Set to 1 as we want to insensitive charging infrastructure installation)
