@@ -18,6 +18,7 @@ _static/
 .doctrees
 docs/
 output/
+outputs/
 
 # IDE files
 .idea/
