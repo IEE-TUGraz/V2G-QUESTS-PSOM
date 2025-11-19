@@ -1,0 +1,932 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>V2G &mdash; V2G-QUESTS March 2024 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=9493f942"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="data_helper" href="data_helper.html" />
+    <link rel="prev" title="SystemData" href="SystemData.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            V2G-QUESTS
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">V2G_Wrap_Up</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="SystemData.html">SystemData</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">V2G</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#V2G.V2G"><code class="docutils literal notranslate"><span class="pre">V2G</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.enable_rMIP"><code class="docutils literal notranslate"><span class="pre">V2G.enable_rMIP</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.MIP_Gap"><code class="docutils literal notranslate"><span class="pre">V2G.MIP_Gap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.case_study"><code class="docutils literal notranslate"><span class="pre">V2G.case_study</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.dc_opf"><code class="docutils literal notranslate"><span class="pre">V2G.dc_opf</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.start_t"><code class="docutils literal notranslate"><span class="pre">V2G.start_t</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.num_t"><code class="docutils literal notranslate"><span class="pre">V2G.num_t</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.enable_pv"><code class="docutils literal notranslate"><span class="pre">V2G.enable_pv</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.enable_wind"><code class="docutils literal notranslate"><span class="pre">V2G.enable_wind</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.enable_hydro"><code class="docutils literal notranslate"><span class="pre">V2G.enable_hydro</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.lego_gpt_path"><code class="docutils literal notranslate"><span class="pre">V2G.lego_gpt_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.lego_gpt_env_path"><code class="docutils literal notranslate"><span class="pre">V2G.lego_gpt_env_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.slack_bus"><code class="docutils literal notranslate"><span class="pre">V2G.slack_bus</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.year"><code class="docutils literal notranslate"><span class="pre">V2G.year</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.pBatt_cap"><code class="docutils literal notranslate"><span class="pre">V2G.pBatt_cap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.pCharge_Invest"><code class="docutils literal notranslate"><span class="pre">V2G.pCharge_Invest</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.pQfactor"><code class="docutils literal notranslate"><span class="pre">V2G.pQfactor</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.pV_slack"><code class="docutils literal notranslate"><span class="pre">V2G.pV_slack</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.pCh_Inf_Cost"><code class="docutils literal notranslate"><span class="pre">V2G.pCh_Inf_Cost</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.pPenality"><code class="docutils literal notranslate"><span class="pre">V2G.pPenality</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.model"><code class="docutils literal notranslate"><span class="pre">V2G.model</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.results"><code class="docutils literal notranslate"><span class="pre">V2G.results</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.__init__"><code class="docutils literal notranslate"><span class="pre">V2G.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.get_data"><code class="docutils literal notranslate"><span class="pre">V2G.get_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.extract_generator_params"><code class="docutils literal notranslate"><span class="pre">V2G.extract_generator_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.preprocess_data"><code class="docutils literal notranslate"><span class="pre">V2G.preprocess_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.create_model"><code class="docutils literal notranslate"><span class="pre">V2G.create_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.solve_model"><code class="docutils literal notranslate"><span class="pre">V2G.solve_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.export_results"><code class="docutils literal notranslate"><span class="pre">V2G.export_results()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#V2G.V2G.plot_network"><code class="docutils literal notranslate"><span class="pre">V2G.plot_network()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="data_helper.html">data_helper</a></li>
+<li class="toctree-l2"><a class="reference internal" href="helper_functions.html">helper_functions</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">V2G-QUESTS</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">V2G_Wrap_Up</a></li>
+      <li class="breadcrumb-item active">V2G</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/V2G.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-V2G">
+<span id="v2g"></span><h1>V2G<a class="headerlink" href="#module-V2G" title="Link to this heading"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="V2G.V2G">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">V2G.</span></span><span class="sig-name descname"><span class="pre">V2G</span></span><a class="reference internal" href="_modules/V2G.html#V2G"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#V2G.V2G" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Vehicle-to-Grid (V2G) optimization model.</p>
+<p>This class handles the complete workflow for a V2G system, including
+data loading, preprocessing, Pyomo model creation, solving, and exporting
+results. It supports both DC-OPF and SOCP formulations.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Data processing:</strong> load and preprocess grid, EV, generator, and price data</p></li>
+<li><p><strong>Model creation:</strong> define sets, parameters, variables, constraints, and objective</p></li>
+<li><p><strong>Solving:</strong> run the Pyomo model using Gurobi</p></li>
+<li><p><strong>Exporting:</strong> write results to structured CSV files</p></li>
+<li><p><strong>Visualization:</strong> optional network plotting of inputs or results</p></li>
+</ul>
+<p>Initialize the V2G class and load configuration parameters from
+<code class="docutils literal notranslate"><span class="pre">config.yml</span></code>.</p>
+<p>This constructor sets up all configuration options for the case study,
+simulation horizon, renewable settings, solver parameters, and paths
+to external tools. It also initializes placeholders for the Pyomo model
+and solver results.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.enable_rMIP">
+<span class="sig-name descname"><span class="pre">enable_rMIP</span></span><a class="headerlink" href="#V2G.V2G.enable_rMIP" title="Link to this definition"></a></dt>
+<dd><p>Whether to solve the model as a relaxed Mixed Integer Problem (rMIP).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.MIP_Gap">
+<span class="sig-name descname"><span class="pre">MIP_Gap</span></span><a class="headerlink" href="#V2G.V2G.MIP_Gap" title="Link to this definition"></a></dt>
+<dd><p>Acceptable optimality gap for the Mixed Integer Programming solver.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.case_study">
+<span class="sig-name descname"><span class="pre">case_study</span></span><a class="headerlink" href="#V2G.V2G.case_study" title="Link to this definition"></a></dt>
+<dd><p>Name of the selected case study loaded from the configuration file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.dc_opf">
+<span class="sig-name descname"><span class="pre">dc_opf</span></span><a class="headerlink" href="#V2G.V2G.dc_opf" title="Link to this definition"></a></dt>
+<dd><p>If <code class="docutils literal notranslate"><span class="pre">True</span></code>, use DC-OPF; otherwise use SOCP as the convex AC-OPF formulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.start_t">
+<span class="sig-name descname"><span class="pre">start_t</span></span><a class="headerlink" href="#V2G.V2G.start_t" title="Link to this definition"></a></dt>
+<dd><p>Index of the first time step considered in the optimization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.num_t">
+<span class="sig-name descname"><span class="pre">num_t</span></span><a class="headerlink" href="#V2G.V2G.num_t" title="Link to this definition"></a></dt>
+<dd><p>Number of time steps included in the simulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.enable_pv">
+<span class="sig-name descname"><span class="pre">enable_pv</span></span><a class="headerlink" href="#V2G.V2G.enable_pv" title="Link to this definition"></a></dt>
+<dd><p>Whether photovoltaic generation is included in the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.enable_wind">
+<span class="sig-name descname"><span class="pre">enable_wind</span></span><a class="headerlink" href="#V2G.V2G.enable_wind" title="Link to this definition"></a></dt>
+<dd><p>Whether wind generation is included in the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.enable_hydro">
+<span class="sig-name descname"><span class="pre">enable_hydro</span></span><a class="headerlink" href="#V2G.V2G.enable_hydro" title="Link to this definition"></a></dt>
+<dd><p>Whether hydro generation is included in the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.lego_gpt_path">
+<span class="sig-name descname"><span class="pre">lego_gpt_path</span></span><a class="headerlink" href="#V2G.V2G.lego_gpt_path" title="Link to this definition"></a></dt>
+<dd><p>Filesystem path to the LEGO-GPT script used for plotting.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.lego_gpt_env_path">
+<span class="sig-name descname"><span class="pre">lego_gpt_env_path</span></span><a class="headerlink" href="#V2G.V2G.lego_gpt_env_path" title="Link to this definition"></a></dt>
+<dd><p>Path to the virtual environment for LEGO-GPT.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.slack_bus">
+<span class="sig-name descname"><span class="pre">slack_bus</span></span><a class="headerlink" href="#V2G.V2G.slack_bus" title="Link to this definition"></a></dt>
+<dd><p>ID of the slack/reference bus in the power grid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.year">
+<span class="sig-name descname"><span class="pre">year</span></span><a class="headerlink" href="#V2G.V2G.year" title="Link to this definition"></a></dt>
+<dd><p>Simulation year (used for selecting time series and input data).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.pBatt_cap">
+<span class="sig-name descname"><span class="pre">pBatt_cap</span></span><a class="headerlink" href="#V2G.V2G.pBatt_cap" title="Link to this definition"></a></dt>
+<dd><p>Installed decentralized storage capacity in the system (excluding V2G).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.pCharge_Invest">
+<span class="sig-name descname"><span class="pre">pCharge_Invest</span></span><a class="headerlink" href="#V2G.V2G.pCharge_Invest" title="Link to this definition"></a></dt>
+<dd><p>Investment cost for charging infrastructure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.pQfactor">
+<span class="sig-name descname"><span class="pre">pQfactor</span></span><a class="headerlink" href="#V2G.V2G.pQfactor" title="Link to this definition"></a></dt>
+<dd><p>Reactive power factor applied to active power demand.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.pV_slack">
+<span class="sig-name descname"><span class="pre">pV_slack</span></span><a class="headerlink" href="#V2G.V2G.pV_slack" title="Link to this definition"></a></dt>
+<dd><p>Slack-bus voltage magnitude used in the SOCP formulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.pCh_Inf_Cost">
+<span class="sig-name descname"><span class="pre">pCh_Inf_Cost</span></span><a class="headerlink" href="#V2G.V2G.pCh_Inf_Cost" title="Link to this definition"></a></dt>
+<dd><p>Cost of charging infrastructure per MW.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.pPenality">
+<span class="sig-name descname"><span class="pre">pPenality</span></span><a class="headerlink" href="#V2G.V2G.pPenality" title="Link to this definition"></a></dt>
+<dd><p>Penalty factor for excess or missing energy at EVs or buses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.model">
+<span class="sig-name descname"><span class="pre">model</span></span><a class="headerlink" href="#V2G.V2G.model" title="Link to this definition"></a></dt>
+<dd><p>Pyomo optimization model (created later in <a class="reference internal" href="#V2G.V2G.create_model" title="V2G.V2G.create_model"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create_model()</span></code></a>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pyomo.environ.ConcreteModel or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.results">
+<span class="sig-name descname"><span class="pre">results</span></span><a class="headerlink" href="#V2G.V2G.results" title="Link to this definition"></a></dt>
+<dd><p>Solver results returned after <a class="reference internal" href="#V2G.V2G.solve_model" title="V2G.V2G.solve_model"><code class="xref py py-meth docutils literal notranslate"><span class="pre">solve_model()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pyomo.opt.results.SolverResults or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="V2G.V2G.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/V2G.html#V2G.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#V2G.V2G.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initialize the V2G class and load configuration parameters from
+<code class="docutils literal notranslate"><span class="pre">config.yml</span></code>.</p>
+<p>This constructor sets up all configuration options for the case study,
+simulation horizon, renewable settings, solver parameters, and paths
+to external tools. It also initializes placeholders for the Pyomo model
+and solver results.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">enable_rMIP</span></span><a class="headerlink" href="#id0" title="Link to this definition"></a></dt>
+<dd><p>Whether to solve the model as a relaxed Mixed Integer Problem (rMIP).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">MIP_Gap</span></span><a class="headerlink" href="#id1" title="Link to this definition"></a></dt>
+<dd><p>Acceptable optimality gap for the Mixed Integer Programming solver.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">case_study</span></span><a class="headerlink" href="#id2" title="Link to this definition"></a></dt>
+<dd><p>Name of the selected case study loaded from the configuration file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">dc_opf</span></span><a class="headerlink" href="#id3" title="Link to this definition"></a></dt>
+<dd><p>If <code class="docutils literal notranslate"><span class="pre">True</span></code>, use DC-OPF; otherwise use SOCP as the convex AC-OPF formulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id4">
+<span class="sig-name descname"><span class="pre">start_t</span></span><a class="headerlink" href="#id4" title="Link to this definition"></a></dt>
+<dd><p>Index of the first time step considered in the optimization.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id5">
+<span class="sig-name descname"><span class="pre">num_t</span></span><a class="headerlink" href="#id5" title="Link to this definition"></a></dt>
+<dd><p>Number of time steps included in the simulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id6">
+<span class="sig-name descname"><span class="pre">enable_pv</span></span><a class="headerlink" href="#id6" title="Link to this definition"></a></dt>
+<dd><p>Whether photovoltaic generation is included in the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id7">
+<span class="sig-name descname"><span class="pre">enable_wind</span></span><a class="headerlink" href="#id7" title="Link to this definition"></a></dt>
+<dd><p>Whether wind generation is included in the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id8">
+<span class="sig-name descname"><span class="pre">enable_hydro</span></span><a class="headerlink" href="#id8" title="Link to this definition"></a></dt>
+<dd><p>Whether hydro generation is included in the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id9">
+<span class="sig-name descname"><span class="pre">lego_gpt_path</span></span><a class="headerlink" href="#id9" title="Link to this definition"></a></dt>
+<dd><p>Filesystem path to the LEGO-GPT script used for plotting.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id10">
+<span class="sig-name descname"><span class="pre">lego_gpt_env_path</span></span><a class="headerlink" href="#id10" title="Link to this definition"></a></dt>
+<dd><p>Path to the virtual environment for LEGO-GPT.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id11">
+<span class="sig-name descname"><span class="pre">slack_bus</span></span><a class="headerlink" href="#id11" title="Link to this definition"></a></dt>
+<dd><p>ID of the slack/reference bus in the power grid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id12">
+<span class="sig-name descname"><span class="pre">year</span></span><a class="headerlink" href="#id12" title="Link to this definition"></a></dt>
+<dd><p>Simulation year (used for selecting time series and input data).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id13">
+<span class="sig-name descname"><span class="pre">pBatt_cap</span></span><a class="headerlink" href="#id13" title="Link to this definition"></a></dt>
+<dd><p>Installed decentralized storage capacity in the system (excluding V2G).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id14">
+<span class="sig-name descname"><span class="pre">pCharge_Invest</span></span><a class="headerlink" href="#id14" title="Link to this definition"></a></dt>
+<dd><p>Investment cost for charging infrastructure.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id15">
+<span class="sig-name descname"><span class="pre">pQfactor</span></span><a class="headerlink" href="#id15" title="Link to this definition"></a></dt>
+<dd><p>Reactive power factor applied to active power demand.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id16">
+<span class="sig-name descname"><span class="pre">pV_slack</span></span><a class="headerlink" href="#id16" title="Link to this definition"></a></dt>
+<dd><p>Slack-bus voltage magnitude used in the SOCP formulation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id17">
+<span class="sig-name descname"><span class="pre">pCh_Inf_Cost</span></span><a class="headerlink" href="#id17" title="Link to this definition"></a></dt>
+<dd><p>Cost of charging infrastructure per MW.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id18">
+<span class="sig-name descname"><span class="pre">pPenality</span></span><a class="headerlink" href="#id18" title="Link to this definition"></a></dt>
+<dd><p>Penalty factor for excess or missing energy at EVs or buses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id19">
+<span class="sig-name descname"><span class="pre">model</span></span><a class="headerlink" href="#id19" title="Link to this definition"></a></dt>
+<dd><p>Pyomo optimization model (created later in <a class="reference internal" href="#V2G.V2G.create_model" title="V2G.V2G.create_model"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create_model()</span></code></a>).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pyomo.environ.ConcreteModel or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id20">
+<span class="sig-name descname"><span class="pre">results</span></span><a class="headerlink" href="#id20" title="Link to this definition"></a></dt>
+<dd><p>Solver results returned after <a class="reference internal" href="#V2G.V2G.solve_model" title="V2G.V2G.solve_model"><code class="xref py py-meth docutils literal notranslate"><span class="pre">solve_model()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pyomo.opt.results.SolverResults or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="V2G.V2G.get_data">
+<span class="sig-name descname"><span class="pre">get_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/V2G.html#V2G.get_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#V2G.V2G.get_data" title="Link to this definition"></a></dt>
+<dd><p>Load system data using the SystemData helper and assign it to instance attributes.</p>
+<p>This method initializes a <code class="xref py py-class docutils literal notranslate"><span class="pre">sd.SystemData</span></code> object using the configuration
+values stored in this instance, calls its <code class="docutils literal notranslate"><span class="pre">get_data()</span></code> method to populate
+internal dataframes and matrices, and then maps these results to the
+V2G instance attributes.</p>
+<section id="side-effects">
+<h3>Side Effects<a class="headerlink" href="#side-effects" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><dl class="simple">
+<dt>Sets attributes used by later preprocessing and model construction:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">buses_df</span></code>, <code class="docutils literal notranslate"><span class="pre">branches_df</span></code>, <code class="docutils literal notranslate"><span class="pre">loads_p_df</span></code>, <code class="docutils literal notranslate"><span class="pre">evs_df</span></code>, <code class="docutils literal notranslate"><span class="pre">price_df</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">capacity_pv_df</span></code>, <code class="docutils literal notranslate"><span class="pre">capacity_wind_df</span></code>, <code class="docutils literal notranslate"><span class="pre">capacity_hydro_df</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">generators_df</span></code>, <code class="docutils literal notranslate"><span class="pre">bus_batt_cap_df</span></code>, <code class="docutils literal notranslate"><span class="pre">pCharge_Invest</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">availability_matrix</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>Prints progress messages and total load time to stdout.</p></li>
+</ul>
+</section>
+<section id="dependencies">
+<h3>Dependencies<a class="headerlink" href="#dependencies" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>Relies on <code class="docutils literal notranslate"><span class="pre">sd.SystemData</span></code> to provide the data attributes listed above.</p></li>
+<li><p>Uses <code class="docutils literal notranslate"><span class="pre">time</span></code> for timing.</p></li>
+<li><dl class="simple">
+<dt>Requires that the following instance attributes are already set:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_t</span></code>, <code class="docutils literal notranslate"><span class="pre">start_t</span></code>, <code class="docutils literal notranslate"><span class="pre">case_study</span></code>, <code class="docutils literal notranslate"><span class="pre">enable_pv</span></code>, <code class="docutils literal notranslate"><span class="pre">enable_wind</span></code>,
+<code class="docutils literal notranslate"><span class="pre">enable_hydro</span></code>, <code class="docutils literal notranslate"><span class="pre">year</span></code>, <code class="docutils literal notranslate"><span class="pre">pBatt_cap</span></code>, <code class="docutils literal notranslate"><span class="pre">pCharge_Invest</span></code></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="V2G.V2G.extract_generator_params">
+<span class="sig-name descname"><span class="pre">extract_generator_params</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/V2G.html#V2G.extract_generator_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#V2G.V2G.extract_generator_params" title="Link to this definition"></a></dt>
+<dd><p>Extract generator parameters from <code class="docutils literal notranslate"><span class="pre">generators_df</span></code> and assign them as instance attributes.</p>
+<p>The method processes generator data for predefined types (<code class="docutils literal notranslate"><span class="pre">pv</span></code>, <code class="docutils literal notranslate"><span class="pre">hydro</span></code>, <code class="docutils literal notranslate"><span class="pre">wind</span></code>) and
+parameters (<code class="docutils literal notranslate"><span class="pre">Pmax</span></code>, <code class="docutils literal notranslate"><span class="pre">Pmin</span></code>, <code class="docutils literal notranslate"><span class="pre">Qmax</span></code>, <code class="docutils literal notranslate"><span class="pre">Qmin</span></code>).
+For every (type, parameter) combination, it creates a dictionary mapping bus IDs to values
+and stores it in an attribute such as <code class="docutils literal notranslate"><span class="pre">pv_Pmax</span></code> or <code class="docutils literal notranslate"><span class="pre">wind_Qmin</span></code>.</p>
+<section id="attributes-created">
+<h3>Attributes Created<a class="headerlink" href="#attributes-created" title="Link to this heading"></a></h3>
+<p>The following attributes are dynamically created and attached to the instance:</p>
+<p class="rubric">Example</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">generators_df</span></code> contains:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>bus</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>Pmax</p></th>
+<th class="head"><p>Pmin</p></th>
+<th class="head"><p>Qmax</p></th>
+<th class="head"><p>Qmin</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Node_1</p></td>
+<td><p>pv</p></td>
+<td><p>100</p></td>
+<td><p>50</p></td>
+<td><p>30</p></td>
+<td><p>10</p></td>
+</tr>
+<tr class="row-odd"><td><p>Node_2</p></td>
+<td><p>wind</p></td>
+<td><p>200</p></td>
+<td><p>100</p></td>
+<td><p>60</p></td>
+<td><p>20</p></td>
+</tr>
+<tr class="row-even"><td><p>Node_3</p></td>
+<td><p>hydro</p></td>
+<td><p>150</p></td>
+<td><p>75</p></td>
+<td><p>45</p></td>
+<td><p>15</p></td>
+</tr>
+</tbody>
+</table>
+<p>Then the method will produce attributes such as:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">self.pv_Pmax</span>&#160;&#160; <span class="pre">=</span> <span class="pre">{&quot;Node_1&quot;:</span> <span class="pre">100}</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">self.wind_Pmin</span> <span class="pre">=</span> <span class="pre">{&quot;Node_2&quot;:</span> <span class="pre">100}</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">self.hydro_Qmax</span> <span class="pre">=</span> <span class="pre">{&quot;Node_3&quot;:</span> <span class="pre">45}</span></code></p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">raises AttributeError<span class="colon">:</span></dt>
+<dd class="field-odd"><p>If <code class="docutils literal notranslate"><span class="pre">generators_df</span></code> is missing required columns or not properly defined.</p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="V2G.V2G.preprocess_data">
+<span class="sig-name descname"><span class="pre">preprocess_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/V2G.html#V2G.preprocess_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#V2G.V2G.preprocess_data" title="Link to this definition"></a></dt>
+<dd><p>Preprocess the data required for the V2G (Vehicle-to-Grid) system.</p>
+<p>This method performs the following steps:</p>
+<ol class="arabic simple">
+<li><p>Creates a mirrored copy of each branch for the SOCP formulation
+(swapping <code class="docutils literal notranslate"><span class="pre">fbus</span></code> and <code class="docutils literal notranslate"><span class="pre">tbus</span></code>) and appends it to <code class="docutils literal notranslate"><span class="pre">branches_df</span></code>.</p></li>
+<li><p>Sets a MultiIndex on the <code class="docutils literal notranslate"><span class="pre">branches_df</span></code> DataFrame using the <code class="docutils literal notranslate"><span class="pre">fbus</span></code> and
+<code class="docutils literal notranslate"><span class="pre">tbus</span></code> columns.</p></li>
+<li><p>Aligns the index of <code class="docutils literal notranslate"><span class="pre">loads_p_df</span></code> with the index of <code class="docutils literal notranslate"><span class="pre">price_df</span></code> to ensure
+consistency in time indexing.</p></li>
+<li><p>Converts the <code class="docutils literal notranslate"><span class="pre">loads_p_df</span></code> DataFrame to a float type.</p></li>
+</ol>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.branches_df">
+<span class="sig-name descname"><span class="pre">branches_df</span></span><a class="headerlink" href="#V2G.V2G.branches_df" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing branch data, modified during preprocessing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.loads_p_df">
+<span class="sig-name descname"><span class="pre">loads_p_df</span></span><a class="headerlink" href="#V2G.V2G.loads_p_df" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing load power data, aligned with the time index of
+<code class="docutils literal notranslate"><span class="pre">price_df</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="V2G.V2G.price_df">
+<span class="sig-name descname"><span class="pre">price_df</span></span><a class="headerlink" href="#V2G.V2G.price_df" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing price data used for time index alignment.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="V2G.V2G.create_model">
+<span class="sig-name descname"><span class="pre">create_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/V2G.html#V2G.create_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#V2G.V2G.create_model" title="Link to this definition"></a></dt>
+<dd><p>Create the Pyomo optimization model for the Vehicle-to-Grid (V2G) system.</p>
+<p>This method defines all sets, parameters, variables, and constraints
+required for the optimization model. It supports both DC Optimal Power Flow
+(DC-OPF) and Second-Order Cone Programming (SOCP) formulations.</p>
+<section id="steps">
+<h3>Steps<a class="headerlink" href="#steps" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Define sets</strong>:
+- Time steps
+- Grid buses
+- Branches
+- Electric Vehicles (EVs)
+- Generators (PV, wind, hydro)</p></li>
+<li><p><strong>Define parameters</strong> for:
+- Grid topology and branch characteristics
+- EV availability, charging/discharging limits
+- Renewable generator capacities
+- Storage capacities and battery limits</p></li>
+<li><p><strong>Define variables</strong>:
+- Active and reactive power flows
+- EV charging and discharging powers
+- Storage state of charge and voltage magnitudes</p></li>
+<li><p><strong>Define constraints</strong>:
+- Power balance at each bus and time step
+- Generator and EV operational limits
+- Battery operation and state constraints
+- Second-order cone constraints (if SOCP formulation)</p></li>
+<li><p><strong>Define objective function</strong> to minimize:
+- Electricity import costs
+- EV energy costs
+- Penalty for slack bus deviations
+- Charging infrastructure investment costs</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</section>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="V2G.V2G.solve_model">
+<span class="sig-name descname"><span class="pre">solve_model</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/V2G.html#V2G.solve_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#V2G.V2G.solve_model" title="Link to this definition"></a></dt>
+<dd><p>Solve the Pyomo optimization model using the Gurobi solver.</p>
+<p>This method performs the following steps:</p>
+<ol class="arabic simple">
+<li><p>Initializes the Gurobi solver via Pyomo.</p></li>
+<li><p>Solves the optimization model.</p></li>
+<li><p>Checks the solver’s status and termination condition.
+- If the solution is optimal, prints the optimal cost.
+- Otherwise, prints solver status and termination information.</p></li>
+<li><p>Iterates through the model’s variables and optionally prints their values.</p></li>
+</ol>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>Requires that the model has been created using <a class="reference internal" href="#V2G.V2G.create_model" title="V2G.V2G.create_model"><code class="xref py py-meth docutils literal notranslate"><span class="pre">create_model()</span></code></a>.</p></li>
+<li><p>Solver options such as MIP gap are taken from instance attributes.</p></li>
+<li><p>Results are stored in the instance attribute <code class="docutils literal notranslate"><span class="pre">results</span></code>.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="V2G.V2G.export_results">
+<span class="sig-name descname"><span class="pre">export_results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/V2G.html#V2G.export_results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#V2G.V2G.export_results" title="Link to this definition"></a></dt>
+<dd><p>Export the results of the solved Pyomo model to a SQLite database.</p>
+<p>This method performs the following steps:</p>
+<ol class="arabic simple">
+<li><p>Saves the model’s results to a SQLite database file named <code class="docutils literal notranslate"><span class="pre">result.sqlite</span></code>
+in the <code class="docutils literal notranslate"><span class="pre">output</span></code> directory.</p></li>
+<li><p>If the file already exists, it removes all existing tables before saving
+the new results.</p></li>
+<li><p>Maps model variables and solver outputs into structured tables.</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>AttributeError</strong> – If <code class="docutils literal notranslate"><span class="pre">results</span></code> are not available (i.e., the model has not been solved yet).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="V2G.V2G.plot_network">
+<span class="sig-name descname"><span class="pre">plot_network</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/V2G.html#V2G.plot_network"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#V2G.V2G.plot_network" title="Link to this definition"></a></dt>
+<dd><p>Plot the network based on the provided data and configuration.</p>
+<p>This method visualizes the network topology, including buses, branches,
+and optionally the solved model results. It uses the external tool LEGO-GPT
+to generate plots in a separate environment. The LEGO-GPT toll is currently not available for the public.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>input_only</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, only the input data (buses, branches, and nodes) are plotted.
+If False, the method requires the model to be solved and plots results
+as well. Defaults to False.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If <code class="docutils literal notranslate"><span class="pre">input_only</span></code> is False and the model has not been solved yet
+    (i.e., <code class="docutils literal notranslate"><span class="pre">self.results</span></code> is None).</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<ul class="simple">
+<li><p>When <code class="docutils literal notranslate"><span class="pre">input_only</span></code> is True, the method plots only the input data:
+buses, branches, and node positions.</p></li>
+<li><p>When <code class="docutils literal notranslate"><span class="pre">input_only</span></code> is False, the method requires the solved model
+and overlays results such as voltages, flows, and EV operations.</p></li>
+<li><p>Plots are generated using the external LEGO-GPT tool via a configuration
+file (<code class="docutils literal notranslate"><span class="pre">plot_config.yml</span></code>) in a separate environment.</p></li>
+</ul>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="SystemData.html" class="btn btn-neutral float-left" title="SystemData" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="data_helper.html" class="btn btn-neutral float-right" title="data_helper" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Kelvin Walenta.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

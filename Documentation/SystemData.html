@@ -1,0 +1,990 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SystemData &mdash; V2G-QUESTS March 2024 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=9493f942"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="V2G" href="V2G.html" />
+    <link rel="prev" title="V2G_Wrap_Up" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            V2G-QUESTS
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">V2G_Wrap_Up</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">SystemData</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#system-data-py">system_data.py</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#usage">Usage</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#SystemData.SystemData"><code class="docutils literal notranslate"><span class="pre">SystemData</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.net"><code class="docutils literal notranslate"><span class="pre">SystemData.net</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.buses_df"><code class="docutils literal notranslate"><span class="pre">SystemData.buses_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.branches_df"><code class="docutils literal notranslate"><span class="pre">SystemData.branches_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.generators_df"><code class="docutils literal notranslate"><span class="pre">SystemData.generators_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.import_price_df"><code class="docutils literal notranslate"><span class="pre">SystemData.import_price_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.evs_df"><code class="docutils literal notranslate"><span class="pre">SystemData.evs_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.ev_battery_data"><code class="docutils literal notranslate"><span class="pre">SystemData.ev_battery_data</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.availability_matrix"><code class="docutils literal notranslate"><span class="pre">SystemData.availability_matrix</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.case_study"><code class="docutils literal notranslate"><span class="pre">SystemData.case_study</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.num_t"><code class="docutils literal notranslate"><span class="pre">SystemData.num_t</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.start_t"><code class="docutils literal notranslate"><span class="pre">SystemData.start_t</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.enable_pv"><code class="docutils literal notranslate"><span class="pre">SystemData.enable_pv</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.enable_wind"><code class="docutils literal notranslate"><span class="pre">SystemData.enable_wind</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.enable_hydro"><code class="docutils literal notranslate"><span class="pre">SystemData.enable_hydro</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.year"><code class="docutils literal notranslate"><span class="pre">SystemData.year</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.pBatt_cap"><code class="docutils literal notranslate"><span class="pre">SystemData.pBatt_cap</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.pCharge_Invest"><code class="docutils literal notranslate"><span class="pre">SystemData.pCharge_Invest</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id0"><code class="docutils literal notranslate"><span class="pre">SystemData.net</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id1"><code class="docutils literal notranslate"><span class="pre">SystemData.buses_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id2"><code class="docutils literal notranslate"><span class="pre">SystemData.branches_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id3"><code class="docutils literal notranslate"><span class="pre">SystemData.generators_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.imports_df"><code class="docutils literal notranslate"><span class="pre">SystemData.imports_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id4"><code class="docutils literal notranslate"><span class="pre">SystemData.import_price_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id5"><code class="docutils literal notranslate"><span class="pre">SystemData.evs_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.capacity_data_pv_df"><code class="docutils literal notranslate"><span class="pre">SystemData.capacity_data_pv_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.bus_batt_cap_df"><code class="docutils literal notranslate"><span class="pre">SystemData.bus_batt_cap_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.line_parameters_df"><code class="docutils literal notranslate"><span class="pre">SystemData.line_parameters_df</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#id6"><code class="docutils literal notranslate"><span class="pre">SystemData.availability_matrix</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.__init__"><code class="docutils literal notranslate"><span class="pre">SystemData.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.get_generator_data"><code class="docutils literal notranslate"><span class="pre">SystemData.get_generator_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.get_price_data"><code class="docutils literal notranslate"><span class="pre">SystemData.get_price_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.get_ev_data"><code class="docutils literal notranslate"><span class="pre">SystemData.get_ev_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.get_availability_matrix"><code class="docutils literal notranslate"><span class="pre">SystemData.get_availability_matrix()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.get_capacity_data"><code class="docutils literal notranslate"><span class="pre">SystemData.get_capacity_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.get_bus_branch_demand_data"><code class="docutils literal notranslate"><span class="pre">SystemData.get_bus_branch_demand_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.get_bus_batt_capacity_data"><code class="docutils literal notranslate"><span class="pre">SystemData.get_bus_batt_capacity_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.get_distributed_battery_data"><code class="docutils literal notranslate"><span class="pre">SystemData.get_distributed_battery_data()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#SystemData.SystemData.get_data"><code class="docutils literal notranslate"><span class="pre">SystemData.get_data()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="V2G.html">V2G</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data_helper.html">data_helper</a></li>
+<li class="toctree-l2"><a class="reference internal" href="helper_functions.html">helper_functions</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">V2G-QUESTS</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="modules.html">V2G_Wrap_Up</a></li>
+      <li class="breadcrumb-item active">SystemData</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/SystemData.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-SystemData">
+<span id="systemdata"></span><h1>SystemData<a class="headerlink" href="#module-SystemData" title="Link to this heading"></a></h1>
+<section id="system-data-py">
+<h2>system_data.py<a class="headerlink" href="#system-data-py" title="Link to this heading"></a></h2>
+<p>Utilities for loading and preparing system input data used by the V2G model.</p>
+<p>This module provides the <cite>SystemData</cite> class which centralizes all data-loading
+and preprocessing steps required to build and populate a Pyomo model of a
+distribution network with distributed storage, EVs and renewable generators.</p>
+<p>The class wraps calls to <cite>data_helper</cite> (aliased as <cite>dh</cite>) and stores the
+results as pandas DataFrames or numpy arrays on the instance for later use.</p>
+<section id="usage">
+<h3>Usage<a class="headerlink" href="#usage" title="Link to this heading"></a></h3>
+<p>Create a SystemData instance and call <code class="docutils literal notranslate"><span class="pre">get_data()</span></code> (or individual getters)
+before building the model. Example:</p>
+<p>sd = SystemData(num_t=24, start_t=0, case_study=’Annelinn’, enable_pv=True,
+enable_wind=True, enable_hydro=False, year=2024,
+pBatt_cap=100, pCharge_Invest=50)
+sd.get_data()</p>
+</section>
+</section>
+<dl class="py class">
+<dt class="sig sig-object py" id="SystemData.SystemData">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">SystemData.</span></span><span class="sig-name descname"><span class="pre">SystemData</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_t</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_t</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">case_study</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_pv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_wind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_hydro</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pBatt_cap</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pCharge_Invest</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slack_bus</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Container and helper for system input data used in the V2G model.</p>
+<p>The class collects raw inputs (buses, branches, generators, EV traces,
+price data, capacity data) and exposes them as pandas DataFrames and
+lightweight numpy objects. Each <cite>get_*</cite> method calls a corresponding
+<cite>data_helper</cite> function and keeps the results as attributes for later use.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_t</strong> (<em>int</em>)</p></li>
+<li><p><strong>horizon.</strong> (<em>Number</em><em> of </em><em>time steps in the simulation</em>)</p></li>
+<li><p><strong>start_t</strong> (<em>int</em>)</p></li>
+<li><p><strong>0</strong><strong>)</strong><strong>.</strong> (<em>Index</em><em> of </em><em>the first time step</em><em> (</em><em>commonly</em>)</p></li>
+<li><p><strong>case_study</strong> (<em>str</em>)</p></li>
+<li><p><strong>loaders.</strong> (<em>Case study identifier used by the data helper</em>)</p></li>
+<li><p><strong>enable_pv</strong> (<em>bool</em>)</p></li>
+<li><p><strong>True</strong> (<em>If</em>)</p></li>
+<li><p><strong>available.</strong> (<em>load hydro capacity/time-series when</em>)</p></li>
+<li><p><strong>enable_wind</strong> (<em>bool</em>)</p></li>
+<li><p><strong>True</strong></p></li>
+<li><p><strong>available.</strong></p></li>
+<li><p><strong>enable_hydro</strong> (<em>bool</em>)</p></li>
+<li><p><strong>True</strong></p></li>
+<li><p><strong>available.</strong></p></li>
+<li><p><strong>year</strong> (<em>int</em>)</p></li>
+<li><p><strong>data.</strong> (<em>Year used to select seasonal / historical</em>)</p></li>
+<li><p><strong>pBatt_cap</strong> (<em>float</em>)</p></li>
+<li><p><strong>buses.</strong> (<em>Total battery capacity used for distributing storage across</em>)</p></li>
+<li><p><strong>pCharge_Invest</strong> (<em>float</em>)</p></li>
+<li><p><strong>constraints.</strong> (<em>Upper bound used when building charging investment</em>)</p></li>
+<li><p><strong>availability_matrix</strong> (<em>optional</em>)</p></li>
+<li><p><strong>is</strong> (<em>Optional precalculated availability matrix. If None the matrix</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<p>:param created by <a class="reference internal" href="#SystemData.SystemData.get_availability_matrix" title="SystemData.SystemData.get_availability_matrix"><code class="xref py py-meth docutils literal notranslate"><span class="pre">get_availability_matrix()</span></code></a> which calls:
+:param <code class="docutils literal notranslate"><span class="pre">dh.create_availability_matrix</span></code>.:</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.net">
+<span class="sig-name descname"><span class="pre">net</span></span><a class="headerlink" href="#SystemData.SystemData.net" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>optional</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Placeholder</span> <span class="pre">for</span> <span class="pre">network</span> <span class="pre">object</span> <span class="pre">returned</span> <span class="pre">by</span> <span class="pre">external</span> <span class="pre">loaders.</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.buses_df">
+<span class="sig-name descname"><span class="pre">buses_df</span></span><a class="headerlink" href="#SystemData.SystemData.buses_df" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Table</span> <span class="pre">with</span> <span class="pre">bus</span> <span class="pre">metadata</span> <span class="pre">(id,</span> <span class="pre">geometry,</span> <span class="pre">attributes).</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.branches_df">
+<span class="sig-name descname"><span class="pre">branches_df</span></span><a class="headerlink" href="#SystemData.SystemData.branches_df" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Table</span> <span class="pre">with</span> <span class="pre">line/branch</span> <span class="pre">metadata.</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.generators_df">
+<span class="sig-name descname"><span class="pre">generators_df</span></span><a class="headerlink" href="#SystemData.SystemData.generators_df" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Generator</span> <span class="pre">table</span> <span class="pre">(bus,</span> <span class="pre">type,</span> <span class="pre">Pmax,</span> <span class="pre">Pmin,</span> <span class="pre">Qmax,</span> <span class="pre">Qmin).</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.import_price_df">
+<span class="sig-name descname"><span class="pre">import_price_df</span></span><a class="headerlink" href="#SystemData.SystemData.import_price_df" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Time</span> <span class="pre">series</span> <span class="pre">of</span> <span class="pre">import</span> <span class="pre">prices</span> <span class="pre">(column</span> <span class="pre">'price').</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.evs_df">
+<span class="sig-name descname"><span class="pre">evs_df</span></span><a class="headerlink" href="#SystemData.SystemData.evs_df" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Tabular</span> <span class="pre">EV</span> <span class="pre">trace</span> <span class="pre">data</span> <span class="pre">enriched</span> <span class="pre">with</span> <span class="pre">battery</span> <span class="pre">specs</span> <span class="pre">and</span> <span class="pre">sampled</span> <span class="pre">variants.</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.ev_battery_data">
+<span class="sig-name descname"><span class="pre">ev_battery_data</span></span><a class="headerlink" href="#SystemData.SystemData.ev_battery_data" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Lookup</span> <span class="pre">table</span> <span class="pre">with</span> <span class="pre">EV</span> <span class="pre">battery</span> <span class="pre">parameters</span> <span class="pre">by</span> <span class="pre">archetype/variant.</span></span></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.availability_matrix">
+<span class="sig-name descname"><span class="pre">availability_matrix</span></span><a class="headerlink" href="#SystemData.SystemData.availability_matrix" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py">
+<span class="sig-name descname"><span class="pre">Binary</span> <span class="pre">availability</span> <span class="pre">matrix</span> <span class="pre">produced</span> <span class="pre">by</span> <span class="pre">the</span> <span class="pre">helper</span> <span class="pre">function.</span></span></dt>
+<dd></dd></dl>
+
+<p>Initializes the SystemData object with configuration parameters and placeholders
+for all relevant datasets used in the case study.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_t</strong> (<em>int</em>) – Number of time steps in the simulation (e.g., 8760 for hourly data over one year).</p></li>
+<li><p><strong>start_t</strong> (<em>int</em>) – Index of the starting time step (used to offset time-series data).</p></li>
+<li><p><strong>case_study</strong> (<em>str</em>) – Identifier or name of the case study (e.g., ‘Kanaleneiland’, ‘Aradas’).</p></li>
+<li><p><strong>enable_pv</strong> (<em>bool</em>) – Whether photovoltaic (PV) generation is included in the system data.</p></li>
+<li><p><strong>enable_wind</strong> (<em>bool</em>) – Whether wind generation is included in the system data.</p></li>
+<li><p><strong>enable_hydro</strong> (<em>bool</em>) – Whether hydro generation is included in the system data.</p></li>
+<li><p><strong>year</strong> (<em>int</em>) – Reference year for which data should be loaded (used for time-dependent datasets).</p></li>
+<li><p><strong>pBatt_cap</strong> (<em>int</em>) – Total available battery storage capacity [MWh] to be distributed across buses.</p></li>
+<li><p><strong>pCharge_Invest</strong> (<em>int</em>) – Total investment or installed charging capacity [MW] for charging infrastructure.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.case_study">
+<span class="sig-name descname"><span class="pre">case_study</span></span><a class="headerlink" href="#SystemData.SystemData.case_study" title="Link to this definition"></a></dt>
+<dd><p>Name of the case study used to locate and load data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.num_t">
+<span class="sig-name descname"><span class="pre">num_t</span></span><a class="headerlink" href="#SystemData.SystemData.num_t" title="Link to this definition"></a></dt>
+<dd><p>Number of simulation time steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.start_t">
+<span class="sig-name descname"><span class="pre">start_t</span></span><a class="headerlink" href="#SystemData.SystemData.start_t" title="Link to this definition"></a></dt>
+<dd><p>Start index for time-series slicing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.enable_pv">
+<span class="sig-name descname"><span class="pre">enable_pv</span></span><a class="headerlink" href="#SystemData.SystemData.enable_pv" title="Link to this definition"></a></dt>
+<dd><p>Flag for enabling PV data loading.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.enable_wind">
+<span class="sig-name descname"><span class="pre">enable_wind</span></span><a class="headerlink" href="#SystemData.SystemData.enable_wind" title="Link to this definition"></a></dt>
+<dd><p>Flag for enabling wind data loading.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.enable_hydro">
+<span class="sig-name descname"><span class="pre">enable_hydro</span></span><a class="headerlink" href="#SystemData.SystemData.enable_hydro" title="Link to this definition"></a></dt>
+<dd><p>Flag for enabling hydro data loading.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.year">
+<span class="sig-name descname"><span class="pre">year</span></span><a class="headerlink" href="#SystemData.SystemData.year" title="Link to this definition"></a></dt>
+<dd><p>Year used to select input datasets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.pBatt_cap">
+<span class="sig-name descname"><span class="pre">pBatt_cap</span></span><a class="headerlink" href="#SystemData.SystemData.pBatt_cap" title="Link to this definition"></a></dt>
+<dd><p>Total available battery capacity [MWh].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.pCharge_Invest">
+<span class="sig-name descname"><span class="pre">pCharge_Invest</span></span><a class="headerlink" href="#SystemData.SystemData.pCharge_Invest" title="Link to this definition"></a></dt>
+<dd><p>Total installed charging capacity [MW].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">net</span></span><a class="headerlink" href="#id0" title="Link to this definition"></a></dt>
+<dd><p>Placeholder for network model data (e.g., pandapower net).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None or object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">buses_df</span></span><a class="headerlink" href="#id1" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing bus-level information.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">branches_df</span></span><a class="headerlink" href="#id2" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing branch (line) parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">generators_df</span></span><a class="headerlink" href="#id3" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing generator parameters (type, Pmax, Qmax, etc.).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.imports_df">
+<span class="sig-name descname"><span class="pre">imports_df</span></span><a class="headerlink" href="#SystemData.SystemData.imports_df" title="Link to this definition"></a></dt>
+<dd><p>DataFrame for external imports (if applicable).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id4">
+<span class="sig-name descname"><span class="pre">import_price_df</span></span><a class="headerlink" href="#id4" title="Link to this definition"></a></dt>
+<dd><p>Time-series DataFrame containing import prices [€/MWh].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id5">
+<span class="sig-name descname"><span class="pre">evs_df</span></span><a class="headerlink" href="#id5" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing aggregated electric vehicle information.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.capacity_data_pv_df">
+<span class="sig-name descname"><span class="pre">capacity_data_pv_df</span></span><a class="headerlink" href="#SystemData.SystemData.capacity_data_pv_df" title="Link to this definition"></a></dt>
+<dd><p>PV generation capacity time series for each bus and time step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.bus_batt_cap_df">
+<span class="sig-name descname"><span class="pre">bus_batt_cap_df</span></span><a class="headerlink" href="#SystemData.SystemData.bus_batt_cap_df" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing distributed battery capacities by bus.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="SystemData.SystemData.line_parameters_df">
+<span class="sig-name descname"><span class="pre">line_parameters_df</span></span><a class="headerlink" href="#SystemData.SystemData.line_parameters_df" title="Link to this definition"></a></dt>
+<dd><p>DataFrame storing electrical line parameters (R, X, thermal limits, etc.).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id6">
+<span class="sig-name descname"><span class="pre">availability_matrix</span></span><a class="headerlink" href="#id6" title="Link to this definition"></a></dt>
+<dd><p>Matrix describing EV availability across buses and time steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="SystemData.SystemData.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_t</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_t</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">case_study</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_pv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_wind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">enable_hydro</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">year</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pBatt_cap</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pCharge_Invest</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slack_bus</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData.__init__" title="Link to this definition"></a></dt>
+<dd><p>Initializes the SystemData object with configuration parameters and placeholders
+for all relevant datasets used in the case study.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_t</strong> (<em>int</em>) – Number of time steps in the simulation (e.g., 8760 for hourly data over one year).</p></li>
+<li><p><strong>start_t</strong> (<em>int</em>) – Index of the starting time step (used to offset time-series data).</p></li>
+<li><p><strong>case_study</strong> (<em>str</em>) – Identifier or name of the case study (e.g., ‘Kanaleneiland’, ‘Aradas’).</p></li>
+<li><p><strong>enable_pv</strong> (<em>bool</em>) – Whether photovoltaic (PV) generation is included in the system data.</p></li>
+<li><p><strong>enable_wind</strong> (<em>bool</em>) – Whether wind generation is included in the system data.</p></li>
+<li><p><strong>enable_hydro</strong> (<em>bool</em>) – Whether hydro generation is included in the system data.</p></li>
+<li><p><strong>year</strong> (<em>int</em>) – Reference year for which data should be loaded (used for time-dependent datasets).</p></li>
+<li><p><strong>pBatt_cap</strong> (<em>int</em>) – Total available battery storage capacity [MWh] to be distributed across buses.</p></li>
+<li><p><strong>pCharge_Invest</strong> (<em>int</em>) – Total investment or installed charging capacity [MW] for charging infrastructure.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id7">
+<span class="sig-name descname"><span class="pre">case_study</span></span><a class="headerlink" href="#id7" title="Link to this definition"></a></dt>
+<dd><p>Name of the case study used to locate and load data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id8">
+<span class="sig-name descname"><span class="pre">num_t</span></span><a class="headerlink" href="#id8" title="Link to this definition"></a></dt>
+<dd><p>Number of simulation time steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id9">
+<span class="sig-name descname"><span class="pre">start_t</span></span><a class="headerlink" href="#id9" title="Link to this definition"></a></dt>
+<dd><p>Start index for time-series slicing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id10">
+<span class="sig-name descname"><span class="pre">enable_pv</span></span><a class="headerlink" href="#id10" title="Link to this definition"></a></dt>
+<dd><p>Flag for enabling PV data loading.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id11">
+<span class="sig-name descname"><span class="pre">enable_wind</span></span><a class="headerlink" href="#id11" title="Link to this definition"></a></dt>
+<dd><p>Flag for enabling wind data loading.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id12">
+<span class="sig-name descname"><span class="pre">enable_hydro</span></span><a class="headerlink" href="#id12" title="Link to this definition"></a></dt>
+<dd><p>Flag for enabling hydro data loading.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id13">
+<span class="sig-name descname"><span class="pre">year</span></span><a class="headerlink" href="#id13" title="Link to this definition"></a></dt>
+<dd><p>Year used to select input datasets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id14">
+<span class="sig-name descname"><span class="pre">pBatt_cap</span></span><a class="headerlink" href="#id14" title="Link to this definition"></a></dt>
+<dd><p>Total available battery capacity [MWh].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id15">
+<span class="sig-name descname"><span class="pre">pCharge_Invest</span></span><a class="headerlink" href="#id15" title="Link to this definition"></a></dt>
+<dd><p>Total installed charging capacity [MW].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id16">
+<span class="sig-name descname"><span class="pre">net</span></span><a class="headerlink" href="#id16" title="Link to this definition"></a></dt>
+<dd><p>Placeholder for network model data (e.g., pandapower net).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None or object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id17">
+<span class="sig-name descname"><span class="pre">buses_df</span></span><a class="headerlink" href="#id17" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing bus-level information.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id18">
+<span class="sig-name descname"><span class="pre">branches_df</span></span><a class="headerlink" href="#id18" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing branch (line) parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id19">
+<span class="sig-name descname"><span class="pre">generators_df</span></span><a class="headerlink" href="#id19" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing generator parameters (type, Pmax, Qmax, etc.).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id20">
+<span class="sig-name descname"><span class="pre">imports_df</span></span><a class="headerlink" href="#id20" title="Link to this definition"></a></dt>
+<dd><p>DataFrame for external imports (if applicable).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id21">
+<span class="sig-name descname"><span class="pre">import_price_df</span></span><a class="headerlink" href="#id21" title="Link to this definition"></a></dt>
+<dd><p>Time-series DataFrame containing import prices [€/MWh].</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id22">
+<span class="sig-name descname"><span class="pre">evs_df</span></span><a class="headerlink" href="#id22" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing aggregated electric vehicle information.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id23">
+<span class="sig-name descname"><span class="pre">capacity_data_pv_df</span></span><a class="headerlink" href="#id23" title="Link to this definition"></a></dt>
+<dd><p>PV generation capacity time series for each bus and time step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id24">
+<span class="sig-name descname"><span class="pre">bus_batt_cap_df</span></span><a class="headerlink" href="#id24" title="Link to this definition"></a></dt>
+<dd><p>DataFrame containing distributed battery capacities by bus.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id25">
+<span class="sig-name descname"><span class="pre">line_parameters_df</span></span><a class="headerlink" href="#id25" title="Link to this definition"></a></dt>
+<dd><p>DataFrame storing electrical line parameters (R, X, thermal limits, etc.).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id26">
+<span class="sig-name descname"><span class="pre">availability_matrix</span></span><a class="headerlink" href="#id26" title="Link to this definition"></a></dt>
+<dd><p>Matrix describing EV availability across buses and time steps.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="SystemData.SystemData.get_generator_data">
+<span class="sig-name descname"><span class="pre">get_generator_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData.get_generator_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData.get_generator_data" title="Link to this definition"></a></dt>
+<dd><p>Load generator metadata and return a cleaned DataFrame.</p>
+<p>The returned <code class="docutils literal notranslate"><span class="pre">generators_df</span></code> contains at least the following columns:
+<code class="docutils literal notranslate"><span class="pre">['bus',</span> <span class="pre">'type',</span> <span class="pre">'Pmax',</span> <span class="pre">'Pmin',</span> <span class="pre">'Qmax',</span> <span class="pre">'Qmin']</span></code>. The <code class="docutils literal notranslate"><span class="pre">type</span></code>
+column is normalized to lowercase to make downstream filtering robust.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><ul class="simple">
+<li><p><em>pd.DataFrame</em></p></li>
+<li><p>The cleaned generator table assigned to <code class="docutils literal notranslate"><span class="pre">self.generators_df</span></code>.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="SystemData.SystemData.get_price_data">
+<span class="sig-name descname"><span class="pre">get_price_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData.get_price_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData.get_price_data" title="Link to this definition"></a></dt>
+<dd><p>Load import price (market price) time series for the configured case study.</p>
+<p>The function stores a DataFrame in <code class="docutils literal notranslate"><span class="pre">self.import_price_df</span></code> with a single
+column named <code class="docutils literal notranslate"><span class="pre">price</span></code> and index corresponding to the simulation time
+steps.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="SystemData.SystemData.get_ev_data">
+<span class="sig-name descname"><span class="pre">get_ev_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">random_state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData.get_ev_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData.get_ev_data" title="Link to this definition"></a></dt>
+<dd><p>Load and enrich EV trace data.</p>
+<p>The method performs the following steps:
+- Load raw EV traces and a battery-spec lookup via <code class="docutils literal notranslate"><span class="pre">dh</span></code>.
+- Compute pre-visit EV energy demand from cumulative ETC values.
+- Assign a sampled vehicle “variant” per vehicle (stochastic mapping)
+using pre-defined archetype probabilities.
+- Merge battery characteristics from the lookup into the trace table.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>random_state</strong> (<em>int</em><em> | </em><em>None</em><em>, </em><em>optional</em>)</p></li>
+<li><p><strong>global</strong> (<em>Seed for reproducible variant sampling. If None the</em>)</p></li>
+<li><p><strong>used.</strong> (<em>numpy RNG state is</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><ul class="simple">
+<li><p><em>pd.DataFrame</em></p></li>
+<li><p>Enriched EV trace table stored in <code class="docutils literal notranslate"><span class="pre">self.evs_df</span></code>.</p></li>
+</ul>
+</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="SystemData.SystemData.get_availability_matrix">
+<span class="sig-name descname"><span class="pre">get_availability_matrix</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData.get_availability_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData.get_availability_matrix" title="Link to this definition"></a></dt>
+<dd><p>Generates and stores the vehicle availability matrix for the simulation.</p>
+<p>This method uses electric vehicle (EV) data and bus data to compute the availability
+of each EV at each bus for all time steps. The result is stored as a matrix indicating
+which EVs are available for charging/discharging at specific times and locations.</p>
+<p>The method internally calls <code class="xref py py-func docutils literal notranslate"><span class="pre">dh.create_availability_matrix()</span></code> and stores
+the second returned element (the actual availability matrix) in <cite>self.availability_matrix</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="SystemData.SystemData.get_capacity_data">
+<span class="sig-name descname"><span class="pre">get_capacity_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData.get_capacity_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData.get_capacity_data" title="Link to this definition"></a></dt>
+<dd><p>Loads and stores time-series generation capacity data for different renewable sources.</p>
+<p>This method retrieves PV, wind, and hydro generation capacity profiles for the given
+case study and time period using the <code class="xref py py-func docutils literal notranslate"><span class="pre">dh.load_capacity_data()</span></code> function.
+The retrieved data is stored in the attributes:
+- <cite>self.capacity_data_pv_df</cite>
+- <cite>self.capacity_data_wind_df</cite>
+- <cite>self.capacity_data_hydro_df</cite></p>
+<p>These DataFrames contain generation availability for each node and time step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="SystemData.SystemData.get_bus_branch_demand_data">
+<span class="sig-name descname"><span class="pre">get_bus_branch_demand_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData.get_bus_branch_demand_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData.get_bus_branch_demand_data" title="Link to this definition"></a></dt>
+<dd><p>Retrieves and loads data related to buses, branches, and demand for the specified case study.
+This method assigns the following attributes:
+- <cite>self.buses_df</cite>: DataFrame containing information about the buses.
+- <cite>self.branches_df</cite>: DataFrame containing information about the branches.
+- <cite>self.demand_p_df</cite>: DataFrame containing active power demand data.
+- <cite>self.demand_q_df</cite>: DataFrame containing reactive power demand data.
+The data is loaded using the <cite>dh.load_bus_branch_demand_data</cite> function, which takes
+the case study identifier and the number of time steps as input.
+Args:</p>
+<blockquote>
+<div><p>None</p>
+</div></blockquote>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="SystemData.SystemData.get_bus_batt_capacity_data">
+<span class="sig-name descname"><span class="pre">get_bus_batt_capacity_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData.get_bus_batt_capacity_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData.get_bus_batt_capacity_data" title="Link to this definition"></a></dt>
+<dd><p>Loads distributed battery capacities used for modeling decentralized storage systems.</p>
+<p>This method retrieves the randomly distributed decentralized storage capacity of a region</p>
+<p>The resulting data is stored in <cite>self.distributed_batt_data_df</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="SystemData.SystemData.get_distributed_battery_data">
+<span class="sig-name descname"><span class="pre">get_distributed_battery_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData.get_distributed_battery_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData.get_distributed_battery_data" title="Link to this definition"></a></dt>
+<dd><p>Loads distributed battery parameters used for modeling decentralized storage systems.</p>
+<p>This method retrieves technical parameters (e.g. efficiency, charge/discharge limits)
+for distributed batteries.</p>
+<p>The resulting data is stored in <cite>self.distributed_batt_data_df</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><em>None</em></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="SystemData.SystemData.get_data">
+<span class="sig-name descname"><span class="pre">get_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/SystemData.html#SystemData.get_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#SystemData.SystemData.get_data" title="Link to this definition"></a></dt>
+<dd><p>Retrieves and processes various system data including bus data, branch data, demand data,
+price data, and electric vehicle (EV) data.
+This method calls internal methods to gather and process the following:
+- Bus data
+- Branch data
+- Demand data
+- Price data
+- Generator data
+- Distributed energy storage data
+- Availability matrix
+- Renewable capacity factors
+- Electric vehicle (EV) data
+Returns:</p>
+<blockquote>
+<div><p>None</p>
+</div></blockquote>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="modules.html" class="btn btn-neutral float-left" title="V2G_Wrap_Up" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="V2G.html" class="btn btn-neutral float-right" title="V2G" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Kelvin Walenta.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
