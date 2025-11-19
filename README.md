@@ -15,5 +15,29 @@ The public version includes a test case for Kanaleneiland, featuring a simplifie
 
 - Additionally, standard_parameters.yml provides default values for modeling parameters, which can be adjusted as required.
 
+**Inputs**
+
+The model inputs are provided either in Excel sheets or in the standard-parameters.yml file for easy accessibility and adaptability.
+These inputs include:
+
+-Energy prices
+
+-Demand profiles, including standard profiles
+
+-Standard parameters for lines, EVs, and battery systems
+
+-Renewable capacity factors
+
+-Decentralized renewable generation
+
+-Decentralized storage systems
+
+-EV/V2G movement and energy demand
+
+**All data is expressed in kW or kWh.**
+
+
+
 **Outputs**
+
 After the model is solved, all model components, including sets, parameters, and variable values are exported into an SQLite file. This file can also be visualized using the LEGO-GPT tool, which is currently not included in the public version.
