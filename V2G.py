@@ -409,6 +409,10 @@ class V2G:
 
             model.add_component('pV_slack', Param(initialize=self.pV_slack, domain=NonNegativeReals,
                                       doc='Slack bus voltage magnitude for SOCP formulation'))
+            model.add_component('pVmin', Param(model.Buses, initialize=model.Vmin, domain=NonNegativeReals,
+                                      doc='Minimum voltage magnitude limit for SOCP formulation'))
+            model.add_component('pVmax', Param(model.Buses, initialize=model.Vmax, domain=NonNegativeReals,
+                                      doc='Maximum voltage magnitude limit for SOCP formulation'))
         # --------------------------------------------
         # Generator Parameters
         # --------------------------------------------
@@ -1057,7 +1061,7 @@ class V2G:
                     V_{min,i}^2 \leq V_{ii,t}
                 """
                 if i != value(model.slack_bus):
-                    return (model.Vmin[i] ** 2 <= model.vCii[i, t])
+                    return (model.pVmin[i] ** 2 <= model.vCii[i, t])
                 else:
                     return Constraint.Skip
 
@@ -1071,7 +1075,7 @@ class V2G:
                     V_{ii,t} \leq V_{max,i}^2
                 """
                 if i != value(model.slack_bus):
-                    return (model.vCii[i, t] <= model.Vmax[i] ** 2)  #
+                    return (model.vCii[i, t] <= model.pVmax[i] ** 2)  #
                 else:
                     return Constraint.Skip
 
