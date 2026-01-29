@@ -862,11 +862,15 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     standard_line_data = line_data.copy()
     standard_line_data['connected_to_slack'] = (standard_line_data['i'] == slack_node) | (
             standard_line_data['j'] == slack_node)
+    fixed_line_types = {}
 
     if case_study == 'Kanaleneiland':
         # Set slack node parameters
         slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 535].iloc[0]
-        # Get other types (excluding slack node) From the standard parameters excluding the given types
+        # Specify certain line and their corresponding types
+        # fixed_line_types = {frozenset(['Node_0', 'Node_68']): 240,
+        #                     frozenset(['Node_0', 'Node_69']): 185,}
+        # Define types for the remaining lines (excluding slack node and fixed line) From the standard parameters excluding! the given types. Those get randomly assigned
         other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([240, 185, 150, 120, 95, 70, 50, 35, 25])]
     elif case_study == 'Aradas':
         slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 240].iloc[0]
@@ -875,11 +879,21 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
         slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 240].iloc[0]
         other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([535, 300, 240, 185])]
 
+    standard_line_data['fixed_type'] = standard_line_data.apply(
+        lambda r: fixed_line_types.get(frozenset([r['i'], r['j']])),
+        axis=1)
+
+    params_by_type = standard_line_parameters_df.set_index('Type')
+
     def assign_params(row):
+        # 1) Slack-connected lines
         if row['connected_to_slack']:
             return pd.Series(slack_node_params)
-        else:
-            return other_types.sample(1).iloc[0]
+        # 2) Explicitly specified lines
+        if pd.notna(row['fixed_type']):
+            return pd.Series(params_by_type.loc[row['fixed_type']])
+        # 3) All remaining lines → random
+        return other_types.sample(1).iloc[0]
 
     assigned_params = standard_line_data.apply(assign_params, axis=1)
     final_data = pd.concat([standard_line_data.drop(columns=['connected_to_slack']), assigned_params], axis=1)
