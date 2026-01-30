@@ -34,7 +34,7 @@ These inputs include:
 
 -EV/V2G movement and energy demand
 
-**All data is expressed in kW or kWh.**
+**All data is expressed in MW or MWh.**
 
 
 
