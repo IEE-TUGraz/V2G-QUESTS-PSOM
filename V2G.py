@@ -107,6 +107,10 @@ class V2G:
         self.pV_slack = config['pV_slack']
         self.pCh_Inf_Cost = config['pCh_Inf_Cost']
         self.pPenality = config['pPenality']
+        self.pEnable_Soft_Line_Limits = config.get('Enable_Soft_Line_Limits', False)
+        self.pEnable_Soft_Voltage_Limits = config.get('Enable_Soft_Voltage_Limits', False)
+        self.pSoft_Line_Limit = config.get('Line_soft_limit')
+        self.pSoft_Voltage_Limit = config.get('V_soft_limit')
 
         # Initialize placeholders for the Pyomo model and solver results
         self.model = None  # Pyomo model object
@@ -401,6 +405,8 @@ class V2G:
 
         model.add_component('pPenality', Param(initialize=self.pPenality, domain=NonNegativeReals,
                                                doc='Penalty factor for exes and lack of energy in EVs and nodes'))
+        model.add_component('pSoft_Line_Limit', Param(initialize=self.pSoft_Line_Limit, domain=NonNegativeReals,
+                                                doc='Soft limit for the thermal line constraints'))
 
         # AC-OPF specific parameters
         if not self.dc_opf:
@@ -413,6 +419,8 @@ class V2G:
                                       doc='Minimum voltage magnitude limit for SOCP formulation'))
             model.add_component('pVmax', Param(model.Buses, initialize=model.Vmax, domain=NonNegativeReals,
                                       doc='Maximum voltage magnitude limit for SOCP formulation'))
+            model.add_component('pSoft_Voltage_Limit', Param(initialize=self.pSoft_Voltage_Limit, domain=NonNegativeReals,
+                                                doc='Soft limit for the SOCP voltage magnitude constraints'))
         # --------------------------------------------
         # Generator Parameters
         # --------------------------------------------
@@ -513,6 +521,9 @@ class V2G:
                                                 doc='Slack variable for active power balance at buses')
         model.vEPS = Var(model.Buses, model.Time, domain=NonNegativeReals,
                                                 doc='Slack variable for excess active power at buses')
+        if self.pEnable_Soft_Line_Limits:
+            model.vLineOverload = Var(model.Branches, model.Time, domain=NonNegativeReals,
+                                                doc='Slack variable for line overloads')
         # --------------------------------------------
         # EV Variables
         # --------------------------------------------
@@ -574,6 +585,12 @@ class V2G:
                                                 doc='Reactive Energy Import')
             # Note: No reactive power export variable since the is no reactive power production in the model
 
+            if self.pEnable_Soft_Voltage_Limits:
+                model.vVoltage_Undershoot = Var(model.Buses, model.Time, domain=NonNegativeReals,
+                                                    doc='Slack variable for voltage magnitude undershoot')
+                model.vVoltage_Overshoot = Var(model.Buses, model.Time, domain=NonNegativeReals,
+                                                    doc='Slack variable for voltage magnitude overshoot')
+
         elif self.dc_opf:
             def theta_bounds(model, i, t):
                 return (model.pMin_Ang[i], model.pMax_Ang[i])
@@ -587,19 +604,34 @@ class V2G:
         # --------------------------------------------
         # General equations
         # --------------------------------------------
-        @model.Constraint(model.Branches, model.Time)
-        def thermal_constraint(model, i, j, t):
-            r"""
-            Thermal limit constraint for active power flow on branch :math:`(i, j)`.
+        if self.pEnable_Soft_Line_Limits:
+            @model.Constraint(model.Branches, model.Time)
+            def thermal_constraint(model, i, j, t):
+                r"""
+                Thermal limit constraint for active power flow on branch :math:`(i, j)`.
 
-            Ensures that the active power flow does not exceed the thermal capacity of the line:
+                Ensures that the active power flow does not exceed the thermal capacity of the line:
 
-            .. math::
+                .. math::
 
-                vLineP_{ij,t} \leq P^{\max}_{ij}
+                    vLineP_{ij,t} \leq P^{\max}_{ij}
 
-            """
-            return model.vLineP[(i, j), t] <= model.pPmax_line[i, j]
+                """
+                return model.vLineP[(i, j), t] <= model.pPmax_line[i, j] * model.pSoft_Line_Limit + model.vLineOverload[(i, j), t]
+        else:
+            @model.Constraint(model.Branches, model.Time)
+            def thermal_constraint(model, i, j, t):
+                r"""
+                Thermal limit constraint for active power flow on branch :math:`(i, j)`.
+
+                Ensures that the active power flow does not exceed the thermal capacity of the line:
+
+                .. math::
+
+                    vLineP_{ij,t} \leq P^{\max}_{ij}
+
+                """
+                return model.vLineP[(i, j), t] <= model.pPmax_line[i, j]
 
         @model.Constraint(model.Time)
         def energy_import_constraint(model, t):
@@ -1051,33 +1083,62 @@ class V2G:
                 return model.vSij[i, j, t] >= -model.vCij[i, j, t] * math.tan(
                     value(model.pMax_AngDiff[i, j]))
 
-            @model.Constraint(model.Buses, model.Time)
-            def voltage_limit_min(model, i, t):
-                r"""
-                Minimum squared voltage magnitude at a bus.
+            if self.pEnable_Soft_Voltage_Limits:
+                @model.Constraint(model.Buses, model.Time)
+                def voltage_limit_min_soft(model, i, t):
+                    r"""
+                    Minimum squared voltage magnitude at a bus with soft limits.
 
-                .. math::
+                    .. math::
 
-                    V_{min,i}^2 \leq V_{ii,t}
-                """
-                if i != value(model.slack_bus):
-                    return (model.pVmin[i] ** 2 <= model.vCii[i, t])
-                else:
-                    return Constraint.Skip
+                        V_{min,i}^2 \leq V_{ii,t} + Voltage\_Undershoot_{i,t}
+                    """
+                    if i != value(model.slack_bus):
+                        return (model.pVmin[i] ** 2 + model.pSoft_Voltage_Limit ** 2 <= model.vCii[i, t] - model.vVoltage_Undershoot[i, t])
+                    else:
+                        return Constraint.Skip
 
-            @model.Constraint(model.Buses, model.Time)
-            def voltage_limit_max(model, i, t):
-                r"""
-                Maximum squared voltage magnitude at a bus.
+                @model.Constraint(model.Buses, model.Time)
+                def voltage_limit_max_soft(model, i, t):
+                    r"""
+                    Maximum squared voltage magnitude at a bus with soft limits.
 
-                .. math::
+                    .. math::
 
-                    V_{ii,t} \leq V_{max,i}^2
-                """
-                if i != value(model.slack_bus):
-                    return (model.vCii[i, t] <= model.pVmax[i] ** 2)  #
-                else:
-                    return Constraint.Skip
+                        V_{ii,t} \leq V_{max,i}^2 + Voltage\_Overshoot_{i,t}
+                    """
+                    if i != value(model.slack_bus):
+                        return (model.vCii[i, t] - model.vVoltage_Overshoot[i, t] <= model.pVmax[i] ** 2 - model.pSoft_Voltage_Limit ** 2)
+                    else:
+                        return Constraint.Skip
+            else:
+                @model.Constraint(model.Buses, model.Time)
+                def voltage_limit_min(model, i, t):
+                    r"""
+                    Minimum squared voltage magnitude at a bus.
+
+                    .. math::
+
+                        V_{min,i}^2 \leq V_{ii,t}
+                    """
+                    if i != value(model.slack_bus):
+                        return (model.pVmin[i] ** 2 <= model.vCii[i, t])
+                    else:
+                        return Constraint.Skip
+
+                @model.Constraint(model.Buses, model.Time)
+                def voltage_limit_max(model, i, t):
+                    r"""
+                    Maximum squared voltage magnitude at a bus.
+
+                    .. math::
+
+                        V_{ii,t} \leq V_{max,i}^2
+                    """
+                    if i != value(model.slack_bus):
+                        return (model.vCii[i, t] <= model.pVmax[i] ** 2)
+                    else:
+                        return Constraint.Skip
 
             @model.Constraint(model.Branches, model.Time)
             def power_flow_active_constraint(model, i, j, t):
@@ -1172,12 +1233,36 @@ class V2G:
         model.charging_investment_cost = Expression(
             expr=sum(model.vCh_cap_EV[i] for i in model.Buses) * model.pCh_Inf_Cost)
 
+        if self.pEnable_Soft_Line_Limits:
+            model.soft_line_limits_penalty = Expression(
+                expr=(
+                    sum(model.vLineOverload[(i, j), t] for (i, j) in model.Branches for t in model.Time) * 0.5 * model.pPenality
+                )
+            )
+        else:
+            model.soft_line_limits_penalty = Expression(
+                expr=0
+            )
+
+        if self.pEnable_Soft_Voltage_Limits:
+            model.soft_voltage_limits_penalty = Expression(
+                expr=(
+                    sum(model.vVoltage_Undershoot[i, t] + model.vVoltage_Overshoot[i, t]
+                        for i in model.Buses for t in model.Time) * 0.1 * model.pPenality
+                )
+            )
+        else:
+            model.soft_voltage_limits_penalty = Expression(
+                expr=0
+            )
 
         model.obj = Objective(
             expr=model.cost_function
                  + model.ens_cost
                  + model.charging_investment_cost
                  + model.ev_energy_cost
+                 + model.soft_line_limits_penalty
+                 + model.soft_voltage_limits_penalty
             , sense=minimize,
             doc=r"""
                 Total system cost objective, including electricity import, EV energy costs,
@@ -1230,6 +1315,43 @@ class V2G:
                     where:
                     - \(ChCap_i\) = installed charging capacity at bus i
                     - \(p_{Ch\_cost}\) = cost per unit of charging capacity in MW
+                    
+                5. **Soft line loading limit violation penalty (optional):**
+
+                .. math::
+        
+                    Cost_{line} =
+                    \alpha_{line} \cdot p_{pen}
+                    \cdot \sum_{(i,j) \in Branches} \sum_{t \in T} Overload_{(i,j),t}
+        
+                where:
+                - \(Overload_{(i,j),t}\) = line loading slack variable for branch (i,j) at time t
+                - \(\alpha_{line}\) = weighting factor for line limit violations (here: 0.5)
+                - \(p_{pen}\) = global penalty factor
+        
+                This term is only active if `pEnable_Soft_Line_Limits = True`.
+                It penalizes deviation from the soft line thermal limits encouraging the model to stay within tighter physical line limits if possible.
+        
+                6. **Soft voltage limit violation penalty (optional):**
+            
+                    .. math::
+            
+                        Cost_{voltage} =
+                        \alpha_{volt} \cdot p_{pen}
+                        \cdot \sum_{i \in Buses} \sum_{t \in T}
+                        (V^{under}_{i,t} + V^{over}_{i,t})
+            
+                    where:
+                    - \(V^{under}_{i,t}\) = voltage undershoot slack at bus i, time t
+                    - \(V^{over}_{i,t}\) = voltage overshoot slack at bus i, time t
+                    - \(\alpha_{volt}\) = weighting factor for voltage violations (here: 0.1)
+                    - \(p_{pen}\) = global penalty factor
+            
+                    This term is only active if `pEnable_Soft_Voltage_Limits = True`.
+                    It penalizes deviations from the soft voltage bounds encouraging the model to stay in tighter voltage bounds if possible.
+                    
+                Overall, the objective function minimizes total system cost while allowing
+                prioritized relaxation of network constraints via weighted soft penalties.
                 """
         )
 
@@ -1385,8 +1507,8 @@ if __name__ == '__main__':
         v2g.get_data() # Load data from the database
         v2g.extract_generator_params() # Extract generator data and generate parameters
         v2g.preprocess_data() # Preprocess the data
-        # v2g.plot_network(input_only=True) # Plot the network with the input data. Not available in the public version
+        # v2g.plot_network(input_only=True) # Plot the network with the input data. Not currently available in the public version
         v2g.create_model() # Create the Pyomo model
         v2g.solve_model() # Solve the Pyomo model
         v2g.export_results() # Export the results to a SQLite database
-        # v2g.plot_network() # Plot the network with the result data. Not available in the public version
+        # v2g.plot_network() # Plot the network with the result data. Not currently available in the public version
