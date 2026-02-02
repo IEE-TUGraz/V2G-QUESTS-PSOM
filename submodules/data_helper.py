@@ -326,7 +326,7 @@ def build_demand_timeseries(case_study: str, num_t: int, start_t: int):
 
         for node in nodes_df["i"]:
             noise = np.random.normal(0, 0.05, size=8760)
-            demand_hourly_df[node] = (base_profile.to_numpy() * (1 + noise))/1000  # kWh to MWh
+            demand_hourly_df[node] = (base_profile.to_numpy() * (1 + noise)) /len(nodes_df["i"])
 
         # Apply time slicing
         demand_hourly_df = safe_slice(demand_hourly_df, start_t, num_t)
@@ -911,8 +911,6 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     z_squared = line_data['pRLine'] ** 2 + line_data['pXLine'] ** 2
     line_data['pGLine'] = line_data['pRLine'] / z_squared
     line_data['pBLine'] = -line_data['pXLine'] / z_squared
-    # Rename X to pXLine
-    line_data = line_data.rename(columns={'X': 'pXLine'})
 
     # Final Branches DataFrame
     Branches_df = line_data.rename(columns={
