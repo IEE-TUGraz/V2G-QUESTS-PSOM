@@ -1,4 +1,8 @@
 # Standard parameters for power system components
+
+# System base power for per unit calculations
+SBase : 25 # System base power in MVA
+
 #  Angle limits are in degrees, voltage limits are in per unit (p.u.)
 Min_Ang: -90 # Minimum angle of the nodes in degrees
 Max_Ang: 90 # Minimum and maximum angle of the nodes in degrees

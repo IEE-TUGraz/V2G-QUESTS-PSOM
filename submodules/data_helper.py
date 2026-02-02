@@ -810,6 +810,7 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     Vmin = parameter["Vmin"]
     pMin_Ang = parameter["Min_Ang"]
     pMax_Ang = parameter["Max_Ang"]
+    pSBase = parameter["SBase"]
 
     # Collect bus data as a list of dicts
     bus_rows = []
@@ -868,10 +869,10 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
         # Set slack node parameters
         slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 535].iloc[0]
         # Specify certain line and their corresponding types
-        # fixed_line_types = {frozenset(['Node_0', 'Node_68']): 240,
-        #                     frozenset(['Node_0', 'Node_69']): 185,}
+        # fixed_line_types = {frozenset(['Node_15', 'Node_30']): 185,
+        #                     frozenset(['Node_15', 'Node_11']): 185,}
         # Define types for the remaining lines (excluding slack node and fixed line) From the standard parameters excluding! the given types. Those get randomly assigned
-        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([240, 185, 150, 120, 95, 70, 50, 35, 25])]
+        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([535, 300, 240, 185, 150, 120, 35, 25])]
     elif case_study == 'Aradas':
         slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 240].iloc[0]
         other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([535, 300, 240, 185])]
@@ -900,8 +901,8 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
 
     line_data['length_km'] = line_data.apply(compute_distance, axis=1)
     # Electrical parameters
-    line_data['pRLine'] = final_data['r'] * line_data['length_km']
-    line_data['pXLine'] = final_data['x'] * line_data['length_km']
+    line_data['pRLine'] = (final_data['r'] / pSBase) * line_data['length_km']
+    line_data['pXLine'] = (final_data['x'] / pSBase) * line_data['length_km']
     line_data['pSmax_line'] = final_data['Smax']
     line_data['pPmax_line'] = 0.9 * final_data['Smax']
     line_data['pMin_AngDiff'] = math.radians(-parameter['Max_AngDiff'])
