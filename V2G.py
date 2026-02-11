@@ -338,7 +338,7 @@ class V2G:
         print('Creating Pyomo model')
         model = ConcreteModel()
 
-        # Define grid sets
+        # Define sets
         model.Time = Set(initialize=list(self.loads_p_df.index),
                             doc='Time steps')
 
@@ -364,6 +364,9 @@ class V2G:
 
         model.Hydro_Buses = Set(within=model.Buses, initialize=self.hydro_pmax.keys(),
                             doc='Buses with Hydro generators')
+
+        model.EV_Available_Locations = Set(dimen=3, initialize=[(row['vehicle'], row['node'], row['time']) for _, row in self.availability_matrix.iterrows()],
+                            doc="Sparse set of (EV, bus, time) where EV is actually available")
 
         print('Sets sucessfully defined')
         # ============================================
@@ -850,7 +853,11 @@ class V2G:
 
                 \sum_{ev \in EVs} (Ch_{ev,t} + Dch_{ev,t}) \cdot Available_{ev,i,t} \leq ChCap_i
             """
-            return sum((model.vCh_EV[ev, t] + model.vDch_EV[ev, t]) * model.pAvailable[ev, i, t] for ev in model.EVs) <= model.vCh_cap_EV[i]
+            available_evs = [ev for (ev, bus, time) in model.EV_Available_Locations
+                             if bus == i and time == t]
+            if not available_evs:
+                return Constraint.Skip
+            return sum(model.vCh_EV[ev, t] + model.vDch_EV[ev, t] for ev in available_evs) <= model.vCh_cap_EV[i]
 
         # Note: The following constraints ensure that EVs can only charge or discharge at a given time but the addition
         # of integer variables may highly increase computational time. Consider disabling them for larger case studies or solving as an rMIP.
