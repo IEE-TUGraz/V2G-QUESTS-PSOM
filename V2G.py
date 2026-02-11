@@ -288,6 +288,9 @@ class V2G:
         # Convert loads_p_df to float
         self.loads_p_df.astype(float)
 
+        # create availability dict for EVs at nodes over time
+        self.availability_dict = self.availability_matrix.set_index(['vehicle', 'node', 'time'])['available'].astype(int).to_dict()
+
         print('Data preprocessed in', time.time() - start_time, 'seconds')
 
     def create_model(self):
@@ -477,9 +480,7 @@ class V2G:
                                                 doc='Required SoC at departure of EVs'))
 
         # Add availability matrix as a parameter that indicates if a EV is available at a certain node at a certain time
-
-        model.pAvailable = Param(model.EVs, model.Buses, model.Time, initialize=lambda m, ev, bus, t:
-        self.availability_matrix.set_index(['vehicle', 'node', 'time'])['available'].astype(int).to_dict().get((ev, bus, t), 0), domain=Binary,
+        model.pAvailable = Param(model.EVs, model.Buses, model.Time, initialize=lambda m, ev, bus, t: self.availability_dict.get((ev, bus, t), 0), domain=Binary,
                                                 doc="Binary availability of EVs at nodes over time")
 
         model.add_component('pCharge_Invest', Param(initialize=float(self.pCharge_Invest), domain=Reals,
