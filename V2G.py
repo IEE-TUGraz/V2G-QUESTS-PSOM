@@ -956,10 +956,13 @@ class V2G:
                     """
                 if i == value(model.slack_bus):
                     return Constraint.Skip
+                available_evs = [ev for (ev, bus, time) in model.EV_Available_Locations
+                                 if bus == i and time == t]
+
                 return (
                         - model.pDemand[t, i]
-                        - sum(model.pAvailable[ev, i, t] * model.vCh_EV[ev, t] for ev in model.EVs)
-                        + sum(model.pAvailable[ev, i, t] * model.vDch_EV[ev, t] for ev in model.EVs)
+                        - sum(model.vCh_EV[ev, t] for ev in available_evs)
+                        + sum(model.vDch_EV[ev, t] for ev in available_evs)
                         + (model.vProd_PV[i, t] if i in model.PV_Buses else 0)
                         + (model.vProd_Wind[i, t] if i in model.Wind_Buses else 0)
                         + (model.vProd_Hydro[i, t] if i in model.Hydro_Buses else 0)
@@ -967,7 +970,7 @@ class V2G:
                         + model.vDch_Batt[i, t]
                         + model.vPNS[i, t]
                         - model.vEPS[i, t]
-                        == sum(model.vLineP[(i, j), t] for j in h.delta(i,model))) # vLineP is Positive for outgoing flow from i to j
+                        == sum(model.vLineP[(i, j), t] for j in h.delta(i, model)))  # vLineP is Positive for outgoing flow from i to j
 
             @model.Constraint(model.Branches, model.Time)
             def eDC_flow_equation(model, i, j, t):
@@ -1031,20 +1034,23 @@ class V2G:
                 """
                 if i == value(model.slack_bus):
                     return Constraint.Skip
-                return (
-                        - model.pDemand[t, i]
-                        - sum(model.pAvailable[ev, i, t] * model.vCh_EV[ev, t] for ev in model.EVs)
-                        + sum(model.pAvailable[ev, i, t] * model.vDch_EV[ev, t] for ev in model.EVs)
-                        + (model.vProd_PV[i, t] if i in model.PV_Buses else 0)
-                        + (model.vProd_Wind[i, t] if i in model.Wind_Buses else 0)
-                        + (model.vProd_Hydro[i, t] if i in model.Hydro_Buses else 0)
-                        + model.Gs[i] * model.vCii[i, t]
-                        - model.vCh_Batt[i, t]
-                        + model.vDch_Batt[i, t]
-                        + model.vPNS[i, t]
-                        - model.vEPS[i, t]
-                        == sum([model.vLineP[(i, j), t]
-                                for j in h.delta(i, model)]))
+
+                available_evs = [ev for (ev, bus, time) in model.EV_Available_Locations
+                                        if bus == i and time == t]
+                return(
+                    - model.pDemand[t, i]
+                    - sum(model.vCh_EV[ev, t] for ev in available_evs)
+                    + sum(model.vDch_EV[ev, t] for ev in available_evs)
+                    + (model.vProd_PV[i, t] if i in model.PV_Buses else 0)
+                    + (model.vProd_Wind[i, t] if i in model.Wind_Buses else 0)
+                    + (model.vProd_Hydro[i, t] if i in model.Hydro_Buses else 0)
+                    + model.Gs[i] * model.vCii[i, t]
+                    - model.vCh_Batt[i, t]
+                    + model.vDch_Batt[i, t]
+                    + model.vPNS[i, t]
+                    - model.vEPS[i, t]
+                    == sum([model.vLineP[(i, j), t] for j in h.delta(i, model)])
+                )
 
             @model.Constraint(model.Buses, model.Time)
             def power_balance_reactive_constraint(model, i, t):
