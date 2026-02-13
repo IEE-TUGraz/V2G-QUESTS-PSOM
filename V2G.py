@@ -425,8 +425,13 @@ class V2G:
                                       doc='Minimum voltage magnitude limit for SOCP formulation'))
             model.add_component('pVmax', Param(model.Buses, initialize=model.Vmax, domain=NonNegativeReals,
                                       doc='Maximum voltage magnitude limit for SOCP formulation'))
-            model.add_component('pSoft_Voltage_Limit', Param(initialize=self.pSoft_Voltage_Limit, domain=NonNegativeReals,
+
+            if self.pEnable_Soft_Voltage_Limits:
+                model.add_component('pSoft_Voltage_Limit', Param(initialize=self.pSoft_Voltage_Limit, domain=NonNegativeReals,
                                                 doc='Soft limit for the SOCP voltage magnitude constraints'))
+            else:
+                model.add_component('pSoft_Voltage_Limit', Param(initialize=0, domain=NonNegativeReals,
+                                                doc='Soft limit for the SOCP voltage magnitude constraints (set to 0 if soft limits are disabled)'))
         # --------------------------------------------
         # Generator Parameters
         # --------------------------------------------
@@ -572,9 +577,21 @@ class V2G:
         # SOCP Variables
         # --------------------------------------------
         if not self.dc_opf:
-            model.vCii = Var(model.Buses, model.Time, domain=NonNegativeReals,
-                                                doc='Squared voltage magnitude at bus'
-                                                    ' :math:''`i`, i.e. :math:`v_{C,ii} = V_{i,re}^2 + V_{i,im}^2`')
+
+            def vCii_bounds(model, i, t):
+                """
+                Return voltage bounds for bus i at time t.
+                Slack bus has no bounds; other buses use squared voltage limits.
+                """
+                if i == model.slack_bus:
+                    return (None, None)  # No bounds for slack bus
+                else:
+                    return ((model.pVmin[i] - model.pSoft_Voltage_Limit) ** 2,
+                            (model.pVmax[i] + model.pSoft_Voltage_Limit) ** 2)
+
+            model.vCii = Var(model.Buses, model.Time, domain=NonNegativeReals, bounds=vCii_bounds,
+                                                 doc='Squared voltage magnitude at bus'
+                                                     ' :math:''`i`, i.e. :math:`v_{C,ii} = V_{i,re}^2 + V_{i,im}^2`')
 
             model.vCij = Var(model.Branches, model.Time, domain=NonNegativeReals,
                                                 doc='Real part of the voltage product between buses'
@@ -589,11 +606,10 @@ class V2G:
                                                 doc='Reactive Energy Import')
             # Note: No reactive power export variable since the is no reactive power production in the model
 
-            if self.pEnable_Soft_Voltage_Limits:
-                model.vVoltage_Undershoot = Var(model.Buses, model.Time, domain=NonNegativeReals,
-                                                    doc='Slack variable for voltage magnitude undershoot')
-                model.vVoltage_Overshoot = Var(model.Buses, model.Time, domain=NonNegativeReals,
-                                                    doc='Slack variable for voltage magnitude overshoot')
+            model.vVoltage_Undershoot = Var(model.Buses, model.Time, domain=NonNegativeReals, bounds= lambda model, i, t: (0, model.pSoft_Voltage_Limit **2) if i != model.slack_bus else (0, 0),
+                                                doc='Slack variable for voltage magnitude undershoot')
+            model.vVoltage_Overshoot = Var(model.Buses, model.Time, domain=NonNegativeReals, bounds= lambda model, i, t: (0, model.pSoft_Voltage_Limit **2) if i != model.slack_bus else (0, 0),
+                                                doc='Slack variable for voltage magnitude overshoot')
 
         elif self.dc_opf:
             def theta_bounds(model, i, t):
@@ -1097,62 +1113,35 @@ class V2G:
                 return model.vSij[i, j, t] >= -model.vCij[i, j, t] * math.tan(
                     value(model.pMax_AngDiff[i, j]))
 
-            if self.pEnable_Soft_Voltage_Limits:
-                @model.Constraint(model.Buses, model.Time)
-                def voltage_limit_min_soft(model, i, t):
-                    r"""
-                    Minimum squared voltage magnitude at a bus with soft limits.
+            @model.Constraint(model.Buses, model.Time)
+            def voltage_limit_min(model, i, t):
+                r"""
+                Minimum squared voltage magnitude at a bus.
 
-                    .. math::
+                .. math::
 
-                        V_{min,i}^2 \leq V_{ii,t} + Voltage\_Undershoot_{i,t}
-                    """
-                    if i != value(model.slack_bus):
-                        return (model.pVmin[i] ** 2 + model.pSoft_Voltage_Limit ** 2 <= model.vCii[i, t] - model.vVoltage_Undershoot[i, t])
-                    else:
-                        return Constraint.Skip
+                    V_{min,i}^2 \leq V_{ii,t}
+                """
+                if i != value(model.slack_bus):
+                    return (model.pVmin[i] ** 2 - model.vVoltage_Undershoot[i, t] <= model.vCii[i, t] )
+                else:
+                    return Constraint.Skip
 
-                @model.Constraint(model.Buses, model.Time)
-                def voltage_limit_max_soft(model, i, t):
-                    r"""
-                    Maximum squared voltage magnitude at a bus with soft limits.
+            @model.Constraint(model.Buses, model.Time)
+            def voltage_limit_max(model, i, t):
+                r"""
+                Maximum squared voltage magnitude at a bus.
 
-                    .. math::
+                .. math::
 
-                        V_{ii,t} \leq V_{max,i}^2 + Voltage\_Overshoot_{i,t}
-                    """
-                    if i != value(model.slack_bus):
-                        return (model.vCii[i, t] - model.vVoltage_Overshoot[i, t] <= model.pVmax[i] ** 2 - model.pSoft_Voltage_Limit ** 2)
-                    else:
-                        return Constraint.Skip
-            else:
-                @model.Constraint(model.Buses, model.Time)
-                def voltage_limit_min(model, i, t):
-                    r"""
-                    Minimum squared voltage magnitude at a bus.
+                    V_{ii,t} \leq V_{max,i}^2
+                """
+                if i != value(model.slack_bus):
+                    return (model.vCii[i, t]  <= model.pVmax[i] ** 2 + model.vVoltage_Overshoot[i, t])
+                else:
+                    return Constraint.Skip
 
-                    .. math::
-
-                        V_{min,i}^2 \leq V_{ii,t}
-                    """
-                    if i != value(model.slack_bus):
-                        return (model.pVmin[i] ** 2 <= model.vCii[i, t])
-                    else:
-                        return Constraint.Skip
-
-                @model.Constraint(model.Buses, model.Time)
-                def voltage_limit_max(model, i, t):
-                    r"""
-                    Maximum squared voltage magnitude at a bus.
-
-                    .. math::
-
-                        V_{ii,t} \leq V_{max,i}^2
-                    """
-                    if i != value(model.slack_bus):
-                        return (model.vCii[i, t] <= model.pVmax[i] ** 2)
-                    else:
-                        return Constraint.Skip
+            @model.Constraint(model.Branches, model.Time)
 
             @model.Constraint(model.Branches, model.Time)
             def power_flow_active_constraint(model, i, j, t):

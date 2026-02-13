@@ -15,7 +15,7 @@ dc_opf: true # true for DC OPF, false for AC OPF
 slack_bus: Node_67 # Sets the slack bus of the network. Node_67 for Kanaleneiland, Node_20 for Aradas, Node_43 for Annelinn
 # Voltage soft limits
 Enable_Soft_Voltage_Limits: false # Enable or disable soft voltage limits [true/false]
-V_soft_limit: 0.05 # Soft voltage limit parameter in p.u. from the hard voltage limits e.g.: Vmax=1.1 p.u.,V_soft_limit=0.05 p.u. then the soft voltage limit is 1.05 p.u.
+V_soft_limit: 0.05 # Soft voltage limit parameter in p.u. from the hard voltage limits e.g.: Vmax=1.05 p.u.,V_soft_limit=0.05 p.u. then the soft voltage limit is 1.10 p.u.
 # Line soft limits
 Enable_Soft_Line_Limits: false # Enable or disable soft line limits [true/false]
 Line_soft_limit: 0.8  # Soft line limit parameter in percentage from the hard line limits e.g.: Line limit=100 MW, Line_soft_limit=0.8 then the soft line limit is 80 MW.
