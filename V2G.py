@@ -10,8 +10,8 @@ from pyomo.environ import ConcreteModel, Var, NonNegativeReals, Objective, minim
 from pyomo.opt import SolverStatus, TerminationCondition
 
 from submodules import SystemData as sd
-from submodules  import data_helper as dh
-from submodules  import helper_functions as h
+from submodules import data_helper as dh
+from submodules import helper_functions as h
 
 
 class V2G:
@@ -30,6 +30,7 @@ class V2G:
     - **Exporting:** write results to structured CSV files
     - **Visualization:** optional network plotting of inputs or results
     """
+
     def __init__(self):
         """
         Initialize the V2G class and load configuration parameters from
@@ -289,7 +290,8 @@ class V2G:
         self.loads_p_df.astype(float)
 
         # create availability dict for EVs at nodes over time
-        self.availability_dict = self.availability_matrix.set_index(['vehicle', 'node', 'time'])['available'].astype(int).to_dict()
+        self.availability_dict = self.availability_matrix.set_index(['vehicle', 'node', 'time'])['available'].astype(
+            int).to_dict()
 
         print('Data preprocessed in', time.time() - start_time, 'seconds')
 
@@ -340,33 +342,34 @@ class V2G:
 
         # Define sets
         model.Time = Set(initialize=list(self.loads_p_df.index),
-                            doc='Time steps')
+                         doc='Time steps')
 
         model.Buses = Set(initialize=list(self.buses_df.id.values),
-                            doc='Grid-buses')
+                          doc='Grid-buses')
 
         model.Branches = Set(dimen=2, initialize=self.branches_df.index,
-                            doc='Grid-branches')
+                             doc='Grid-branches')
 
         model.slack_bus = self.slack_bus
 
         model.EVs = Set(initialize=list(self.evs_df['vehicle_name'].unique()),
-                            doc="Electric Vehicles")
+                        doc="Electric Vehicles")
 
         model.Generators = Set(initialize=self.generators_df['type'].dropna().unique().tolist(),
-                            doc='Generator types')
+                               doc='Generator types')
 
         model.PV_Buses = Set(within=model.Buses, initialize=self.pv_pmax.keys(),
-                            doc='Buses with PV generators')
+                             doc='Buses with PV generators')
 
         model.Wind_Buses = Set(within=model.Buses, initialize=self.wind_pmax.keys(),
-                            doc='Buses with Wind generators')
+                               doc='Buses with Wind generators')
 
         model.Hydro_Buses = Set(within=model.Buses, initialize=self.hydro_pmax.keys(),
-                            doc='Buses with Hydro generators')
+                                doc='Buses with Hydro generators')
 
-        model.EV_Available_Locations = Set(dimen=3, initialize=[(row['vehicle'], row['node'], row['time']) for _, row in self.availability_matrix.iterrows()],
-                            doc="Sparse set of (EV, bus, time) where EV is actually available")
+        model.EV_Available_Locations = Set(dimen=3, initialize=[(row['vehicle'], row['node'], row['time']) for _, row in
+                                                                self.availability_matrix.iterrows()],
+                                           doc="Sparse set of (EV, bus, time) where EV is actually available")
 
         print('Sets sucessfully defined')
         # ============================================
@@ -412,32 +415,33 @@ class V2G:
         model.add_component('pPenality', Param(initialize=self.pPenality, domain=NonNegativeReals,
                                                doc='Penalty factor for exes and lack of energy in EVs and nodes'))
         model.add_component('pSoft_Line_Limit', Param(initialize=self.pSoft_Line_Limit, domain=NonNegativeReals,
-                                                doc='Soft limit for the thermal line constraints'))
+                                                      doc='Soft limit for the thermal line constraints'))
 
         # AC-OPF specific parameters
         if not self.dc_opf:
             model.add_component('pQfactor', Param(initialize=self.pQfactor, domain=NonNegativeReals,
-                                      doc='Reactive power cost factor for SOCP formulation'))
-
+                                                  doc='Reactive power cost factor for SOCP formulation'))
             model.add_component('pV_slack', Param(initialize=self.pV_slack, domain=NonNegativeReals,
-                                      doc='Slack bus voltage magnitude for SOCP formulation'))
+                                                  doc='Slack bus voltage magnitude for SOCP formulation'))
             model.add_component('pVmin', Param(model.Buses, initialize=model.Vmin, domain=NonNegativeReals,
-                                      doc='Minimum voltage magnitude limit for SOCP formulation'))
+                                               doc='Minimum voltage magnitude limit for SOCP formulation'))
             model.add_component('pVmax', Param(model.Buses, initialize=model.Vmax, domain=NonNegativeReals,
-                                      doc='Maximum voltage magnitude limit for SOCP formulation'))
+                                               doc='Maximum voltage magnitude limit for SOCP formulation'))
 
             if self.pEnable_Soft_Voltage_Limits:
-                model.add_component('pSoft_Voltage_Limit', Param(initialize=self.pSoft_Voltage_Limit, domain=NonNegativeReals,
-                                                doc='Soft limit for the SOCP voltage magnitude constraints'))
+                model.add_component('pSoft_Voltage_Limit',
+                                    Param(initialize=self.pSoft_Voltage_Limit, domain=NonNegativeReals,
+                                          doc='Soft limit for the SOCP voltage magnitude constraints'))
             else:
                 model.add_component('pSoft_Voltage_Limit', Param(initialize=0, domain=NonNegativeReals,
-                                                doc='Soft limit for the SOCP voltage magnitude constraints (set to 0 if soft limits are disabled)'))
+                                                                 doc='Soft limit for the SOCP voltage magnitude constraints (set to 0 if soft limits are disabled)'))
         # --------------------------------------------
         # Generator Parameters
         # --------------------------------------------
         # Define the types of generators and their parameters
         generator_types = ['PV', 'Wind', 'Hydro']  # List of generator types (Photovoltaic, Wind, Hydro)
-        params = ['Pmax', 'Pmin', 'Qmax', 'Qmin']  # List of generator parameters (maximum/minimum active and reactive power)
+        params = ['Pmax', 'Pmin', 'Qmax',
+                  'Qmin']  # List of generator parameters (maximum/minimum active and reactive power)
         # Loop through each generator type and parameter to add them as model components
         for gen_type in generator_types:
             for param in params:
@@ -454,19 +458,19 @@ class V2G:
         # --------------------------------------------
         model.add_component('pEV_SOC_max', Param(model.EVs, initialize=self.evs_df.set_index('vehicle_name')[
             'EV_SOC_max [MWh]'].astype(float).to_dict(), domain=NonNegativeReals,
-                                                doc='Maximum SoC of EVs'))
+                                                 doc='Maximum SoC of EVs'))
 
         model.add_component('pEta_ch', Param(model.EVs, initialize=self.evs_df.set_index('vehicle_name')[
             'eta_ch_EV'].astype(float).to_dict(), domain=NonNegativeReals,
-                                                doc='Charging efficiency of EVs'))
+                                             doc='Charging efficiency of EVs'))
 
-        model.add_component('pEta_dch', Param(model.EVs,initialize=self.evs_df.set_index('vehicle_name')[
+        model.add_component('pEta_dch', Param(model.EVs, initialize=self.evs_df.set_index('vehicle_name')[
             'eta_dch_EV'].astype(float).to_dict(), domain=NonNegativeReals,
-                                                doc='Discharge efficiency of EVs'))
+                                              doc='Discharge efficiency of EVs'))
 
         model.add_component('pEVCh_max', Param(model.EVs, initialize=self.evs_df.set_index('vehicle_name')[
             'Ev_ch_max [MW]'].astype(float).to_dict(), domain=NonNegativeReals,
-                                                doc='Maximum charging power of EVs'))
+                                               doc='Maximum charging power of EVs'))
 
         model.add_component('pEVDch_max', Param(model.EVs, initialize=self.evs_df.set_index('vehicle_name')[
             'Ev_dch_max [MW]'].astype(float).to_dict(), domain=NonNegativeReals,
@@ -474,45 +478,54 @@ class V2G:
 
         model.add_component('pEV_SOC_init', Param(model.EVs, initialize=self.evs_df.set_index('vehicle_name')[
             'SoC_init_EV'].astype(float).to_dict(),
-                                                doc='Initial state of charge of EVs'))
+                                                  doc='Initial state of charge of EVs'))
 
         model.add_component('pCh_Inf_Cost', Param(initialize=self.pCh_Inf_Cost, domain=Reals,
-                                                doc = 'Charging infrastructure cost per MW'))
+                                                  doc='Charging infrastructure cost per MW'))
 
         # Create a dictionary mapping each EV's name and departure time to its energy demand.
         # The `evs_df` DataFrame is indexed by 'vehicle_name' and 'departure_time [h]',
         # and the 'EV_demand [MWh]' column is converted to float and then to a dictionary.
-        soc_dict = self.evs_df.set_index(['vehicle_name', 'departure_time [h]'])['EV_demand [MWh]'].astype(float).to_dict()
+        soc_dict = self.evs_df.set_index(['vehicle_name', 'departure_time [h]'])['EV_demand [MWh]'].astype(
+            float).to_dict()
 
-        model.add_component('pSOC_final', Param(model.EVs, model.Time, initialize=lambda m, ev, t: soc_dict.get((ev, t), 0), domain=NonNegativeReals,
-                                                doc='Required SoC at departure of EVs'))
+        model.add_component('pSOC_final',
+                            Param(model.EVs, model.Time, initialize=lambda m, ev, t: soc_dict.get((ev, t), 0),
+                                  domain=NonNegativeReals,
+                                  doc='Required SoC at departure of EVs'))
 
         # Add availability matrix as a parameter that indicates if a EV is available at a certain node at a certain time
-        model.pAvailable = Param(model.EVs, model.Buses, model.Time, initialize=lambda m, ev, bus, t: self.availability_dict.get((ev, bus, t), 0), domain=Binary,
-                                                doc="Binary availability of EVs at nodes over time")
+        model.pAvailable = Param(model.EVs, model.Buses, model.Time,
+                                 initialize=lambda m, ev, bus, t: self.availability_dict.get((ev, bus, t), 0),
+                                 domain=Binary,
+                                 doc="Binary availability of EVs at nodes over time")
 
         model.add_component('pCharge_Invest', Param(initialize=float(self.pCharge_Invest), domain=Reals,
-                                                doc='Charging infrastructure investment cost per MW per EV'))
+                                                    doc='Charging infrastructure investment cost per MW per EV'))
         # --------------------------------------------
         # Decentralized Battery Parameters
         # --------------------------------------------
         model.add_component('pEta_ch_batt', Param(initialize=float(self.distributed_batt_data_df['eta_ch_batt'].iat[0]),
-                                                doc='Charging efficiency of decentralized batteries'))
+                                                  doc='Charging efficiency of decentralized batteries'))
 
-        model.add_component('pEta_dch_batt' ,Param(initialize=float(self.distributed_batt_data_df['eta_dch_batt'].iat[0]),
-                                                doc='Discharging efficiency of decentralized batteries'))
+        model.add_component('pEta_dch_batt',
+                            Param(initialize=float(self.distributed_batt_data_df['eta_dch_batt'].iat[0]),
+                                  doc='Discharging efficiency of decentralized batteries'))
 
-        model.add_component('pBatt_SOC_init', Param(initialize=float(self.distributed_batt_data_df['SoC_init_batt'].iat[0]),
-                                                doc='Initial state of charge of decentralized batteries'))
+        model.add_component('pBatt_SOC_init',
+                            Param(initialize=float(self.distributed_batt_data_df['SoC_init_batt'].iat[0]),
+                                  doc='Initial state of charge of decentralized batteries'))
 
         model.add_component('pBatt_SOC_min', Param(initialize=float(self.distributed_batt_data_df['DoD_batt'].iat[0]),
-                                                doc='Depth of discharge of decentralized batteries'))
+                                                   doc='Depth of discharge of decentralized batteries'))
 
         model.add_component('pC_rate_batt', Param(initialize=float(self.distributed_batt_data_df['C_rate_batt'].iat[0]),
-                                                doc='C-rate of decentralized batteries'))
+                                                  doc='C-rate of decentralized batteries'))
 
-        model.add_component('pBus_batt_cap', Param(model.Buses, initialize=self.bus_batt_cap_df['capacity'].astype(float).to_dict(), domain=Reals,
-                                                doc='Battery capacity per bus'))
+        model.add_component('pBus_batt_cap',
+                            Param(model.Buses, initialize=self.bus_batt_cap_df['capacity'].astype(float).to_dict(),
+                                  domain=Reals,
+                                  doc='Battery capacity per bus'))
         # ============================================
         # Define Variables
         # ============================================
@@ -521,64 +534,63 @@ class V2G:
         # General Variables
         # --------------------------------------------
         model.vImpP = Var(model.Time, domain=NonNegativeReals,
-                                                doc='Active Energy Import')
+                          doc='Active Energy Import')
         model.vExpP = Var(model.Time, domain=NonNegativeReals,
-                                                doc='Active Energy Export')
+                          doc='Active Energy Export')
         model.vLineP = Var(model.Branches, model.Time, domain=Reals,
-                                                doc='Active Power Flow on Lines')
+                           doc='Active Power Flow on Lines')
         model.vPNS = Var(model.Buses, model.Time, domain=NonNegativeReals,
-                                                doc='Slack variable for active power balance at buses')
+                         doc='Slack variable for active power balance at buses')
         model.vEPS = Var(model.Buses, model.Time, domain=NonNegativeReals,
-                                                doc='Slack variable for excess active power at buses')
+                         doc='Slack variable for excess active power at buses')
         if self.pEnable_Soft_Line_Limits:
             model.vLineOverload = Var(model.Branches, model.Time, domain=NonNegativeReals,
-                                                doc='Slack variable for line overloads')
+                                      doc='Slack variable for line overloads')
         # --------------------------------------------
         # EV Variables
         # --------------------------------------------
         model.vSoc_EV = Var(model.EVs, model.Time, domain=NonNegativeReals,
-                                                doc='State of Charge of EVs')
+                            doc='State of Charge of EVs')
         model.vCh_EV = Var(model.EVs, model.Time, domain=NonNegativeReals,
-                                                doc='Charging Amount of EVs')
+                           doc='Charging Amount of EVs')
         model.vDch_EV = Var(model.EVs, model.Time, domain=NonNegativeReals,
-                                                doc='Discharging Amount of EVs')
+                            doc='Discharging Amount of EVs')
         model.vSoc_n = Var(model.EVs, model.Time, domain=NonNegativeReals,
-                                                doc='Slack variable for undercharging EVs')
+                           doc='Slack variable for undercharging EVs')
         model.vSoc_p = Var(model.EVs, model.Time, domain=NonNegativeReals,
-                                                doc='Slack variable for overcharging EVs')
+                           doc='Slack variable for overcharging EVs')
         model.vbCh_EV = Var(model.EVs, model.Time, domain=Binary,
-                                                doc='Binary variable to avoid charging and discharging of EVs at the same time')
+                            doc='Binary variable to avoid charging and discharging of EVs at the same time')
         model.vCh_cap_EV = Var(model.Buses, domain=NonNegativeReals,
-                                                doc='Charging capacity installed at each bus')
+                               doc='Charging capacity installed at each bus')
         # --------------------------------------------
         # Renewable Generator Variables
         # --------------------------------------------
         model.vProd_PV = Var(model.PV_Buses, model.Time, domain=NonNegativeReals,
-                                                doc='PV Production at Buses')
+                             doc='PV Production at Buses')
         model.vProd_Wind = Var(model.Wind_Buses, model.Time, domain=NonNegativeReals,
-                                                doc='Wind Production at Buses')
+                               doc='Wind Production at Buses')
         model.vProd_Hydro = Var(model.Hydro_Buses, model.Time, domain=NonNegativeReals,
-                                                doc='Hydro Production at Buses')
+                                doc='Hydro Production at Buses')
         # --------------------------------------------
         # Storage Variables
         # --------------------------------------------
         model.vSOC_Batt = Var(model.Buses, model.Time, domain=NonNegativeReals,
-                                                doc='State of Charge of Batteries at Buses')
+                              doc='State of Charge of Batteries at Buses')
 
         model.vCh_Batt = Var(model.Buses, model.Time, domain=NonNegativeReals,
-                                                doc='Charging Amount of Buse Batteries')
+                             doc='Charging Amount of Buse Batteries')
 
         model.vDch_Batt = Var(model.Buses, model.Time, domain=NonNegativeReals,
-                                                doc='Discharging Amount of Bus Batteries')
+                              doc='Discharging Amount of Bus Batteries')
 
         model.vbCh_Batt = Var(model.Buses, model.Time, domain=Binary,
-                                                doc='Binary variable to avoid charging and discharging of Bus Batteries at the same time')
+                              doc='Binary variable to avoid charging and discharging of Bus Batteries at the same time')
         # --------------------------------------------
         # SOCP Variables
         # --------------------------------------------
         if not self.dc_opf:
-
-            def vCii_bounds(model, i, t):
+            def voltage_bounds(model, i, t):
                 """
                 Return voltage bounds for bus i at time t.
                 Slack bus has no bounds; other buses use squared voltage limits.
@@ -586,37 +598,41 @@ class V2G:
                 if i == model.slack_bus:
                     return (None, None)  # No bounds for slack bus
                 else:
-                    return ((model.pVmin[i] - model.pSoft_Voltage_Limit) ** 2,
-                            (model.pVmax[i] + model.pSoft_Voltage_Limit) ** 2)
+                    return (model.pVmin[i] ** 2, model.pVmax[i] ** 2)
 
-            model.vCii = Var(model.Buses, model.Time, domain=NonNegativeReals, bounds=vCii_bounds,
-                                                 doc='Squared voltage magnitude at bus'
-                                                     ' :math:''`i`, i.e. :math:`v_{C,ii} = V_{i,re}^2 + V_{i,im}^2`')
+            model.vCii = Var(model.Buses, model.Time, domain=NonNegativeReals, bounds=voltage_bounds,
+                             doc='Squared voltage magnitude at bus i, i.e. v_{C,ii} = V_{i,re}^2 + V_{i,im}^2')
 
             model.vCij = Var(model.Branches, model.Time, domain=NonNegativeReals,
-                                                doc='Real part of the voltage product between buses'
-                                                    ' :math:`i` and :math:`j`, defined as :math:`v_{C,ij} = V_{i,re}V_{j,re} + V_{i,im}V_{j,im}`.')
+                             doc='Real part of the voltage product between buses'
+                                 ' :math:`i` and :math:`j`, defined as :math:`v_{C,ij} = V_{i,re}V_{j,re} + V_{i,im}V_{j,im}`.')
 
             model.vSij = Var(model.Branches, model.Time, domain=Reals,
-                                                doc='Imaginary part of the voltage product between buses'
-                                                    ' :math:`i` and :math:`j`, defined as :math:`v_{S,ij} = V_{i,re}V_{j,im} - V_{i,re}V_{j,im}`.')
+                             doc='Imaginary part of the voltage product between buses'
+                                 ' :math:`i` and :math:`j`, defined as :math:`v_{S,ij} = V_{i,re}V_{j,im} - V_{i,re}V_{j,im}`.')
             model.vLineQ = Var(model.Branches, model.Time, domain=Reals,
-                                                doc='Reactive Power Flow on Lines')
+                               doc='Reactive Power Flow on Lines')
             model.vImpQ = Var(model.Time, domain=Reals,
-                                                doc='Reactive Energy Import')
+                              doc='Reactive Energy Import')
             # Note: No reactive power export variable since the is no reactive power production in the model
 
-            model.vVoltage_Undershoot = Var(model.Buses, model.Time, domain=NonNegativeReals, bounds= lambda model, i, t: (0, model.pSoft_Voltage_Limit **2) if i != model.slack_bus else (0, 0),
-                                                doc='Slack variable for voltage magnitude undershoot')
-            model.vVoltage_Overshoot = Var(model.Buses, model.Time, domain=NonNegativeReals, bounds= lambda model, i, t: (0, model.pSoft_Voltage_Limit **2) if i != model.slack_bus else (0, 0),
-                                                doc='Slack variable for voltage magnitude overshoot')
+            model.vVoltage_Undershoot = Var(model.Buses, model.Time, domain=NonNegativeReals,
+                                            bounds=lambda model, i, t: (0,
+                                                                        model.pSoft_Voltage_Limit ** 2) if i != model.slack_bus else (
+                                                0, 0),
+                                            doc='Slack variable for voltage magnitude undershoot')
+            model.vVoltage_Overshoot = Var(model.Buses, model.Time, domain=NonNegativeReals,
+                                           bounds=lambda model, i, t: (0,
+                                                                       model.pSoft_Voltage_Limit ** 2) if i != model.slack_bus else (
+                                               0, 0),
+                                           doc='Slack variable for voltage magnitude overshoot')
 
         elif self.dc_opf:
             def theta_bounds(model, i, t):
                 return (model.pMin_Ang[i], model.pMax_Ang[i])
 
             model.vTheta = Var(model.Buses, model.Time, domain=Reals, bounds=theta_bounds,
-                                                doc='Voltage phase angle at each bus in the DC-OPF formulation')
+                               doc='Voltage phase angle at each bus in the DC-OPF formulation')
         # ============================================
         # Define equations
         # ============================================
@@ -637,7 +653,8 @@ class V2G:
                     vLineP_{ij,t} \leq P^{\max}_{ij}
 
                 """
-                return model.vLineP[(i, j), t] <= model.pPmax_line[i, j] * model.pSoft_Line_Limit + model.vLineOverload[(i, j), t]
+                return model.vLineP[(i, j), t] <= model.pPmax_line[i, j] * model.pSoft_Line_Limit + model.vLineOverload[
+                    (i, j), t]
         else:
             @model.Constraint(model.Branches, model.Time)
             def thermal_constraint(model, i, j, t):
@@ -668,7 +685,6 @@ class V2G:
             return model.vImpP[t] - model.vExpP[t] == sum(
                 model.vLineP[(model.slack_bus, j), t] for j in h.delta(model.slack_bus, model)
             )
-
 
         # --------------------------------------------
         # Battery equations
@@ -768,6 +784,7 @@ class V2G:
                 Dch_{i,t} \leq C\_rate \cdot pBus\_batt\_cap_i
             """
             return model.vDch_Batt[i, t] <= model.pC_rate_batt * model.pBus_batt_cap[i]
+
         # --------------------------------------------
         # EV equations
         # --------------------------------------------
@@ -900,6 +917,7 @@ class V2G:
                 Ch_{ev,t} \leq M \cdot (1 - vbCh_{ev,t})
             """
             return model.vCh_EV[ev, t] <= model.pBigM * (1 - model.vbCh_EV[ev, t])
+
         # --------------------------------------------
         # Generator Equations
         # --------------------------------------------
@@ -941,6 +959,7 @@ class V2G:
                     P^{Hydro}_{bus,t} = P^{Hydro,max}_{bus} \cdot CF^{Hydro}_t
                 """
             return model.vProd_Hydro[Hydro_Buses, t] == model.Hydro_Pmax[Hydro_Buses] * model.pCf_Hydro[t]
+
         # --------------------------------------------
         # DC-OPF equations
         # --------------------------------------------
@@ -972,6 +991,7 @@ class V2G:
                     """
                 if i == value(model.slack_bus):
                     return Constraint.Skip
+
                 available_evs = [ev for (ev, bus, time) in model.EV_Available_Locations
                                  if bus == i and time == t]
 
@@ -986,7 +1006,8 @@ class V2G:
                         + model.vDch_Batt[i, t]
                         + model.vPNS[i, t]
                         - model.vEPS[i, t]
-                        == sum(model.vLineP[(i, j), t] for j in h.delta(i, model)))  # vLineP is Positive for outgoing flow from i to j
+                        == sum(model.vLineP[(i, j), t] for j in
+                               h.delta(i, model)))  # vLineP is Positive for outgoing flow from i to j
 
             @model.Constraint(model.Branches, model.Time)
             def eDC_flow_equation(model, i, j, t):
@@ -1052,20 +1073,20 @@ class V2G:
                     return Constraint.Skip
 
                 available_evs = [ev for (ev, bus, time) in model.EV_Available_Locations
-                                        if bus == i and time == t]
-                return(
-                    - model.pDemand[t, i]
-                    - sum(model.vCh_EV[ev, t] for ev in available_evs)
-                    + sum(model.vDch_EV[ev, t] for ev in available_evs)
-                    + (model.vProd_PV[i, t] if i in model.PV_Buses else 0)
-                    + (model.vProd_Wind[i, t] if i in model.Wind_Buses else 0)
-                    + (model.vProd_Hydro[i, t] if i in model.Hydro_Buses else 0)
-                    + model.Gs[i] * model.vCii[i, t]
-                    - model.vCh_Batt[i, t]
-                    + model.vDch_Batt[i, t]
-                    + model.vPNS[i, t]
-                    - model.vEPS[i, t]
-                    == sum([model.vLineP[(i, j), t] for j in h.delta(i, model)])
+                                 if bus == i and time == t]
+                return (
+                        - model.pDemand[t, i]
+                        - sum(model.vCh_EV[ev, t] for ev in available_evs)
+                        + sum(model.vDch_EV[ev, t] for ev in available_evs)
+                        + (model.vProd_PV[i, t] if i in model.PV_Buses else 0)
+                        + (model.vProd_Wind[i, t] if i in model.Wind_Buses else 0)
+                        + (model.vProd_Hydro[i, t] if i in model.Hydro_Buses else 0)
+                        + model.Gs[i] * model.vCii[i, t]
+                        - model.vCh_Batt[i, t]
+                        + model.vDch_Batt[i, t]
+                        + model.vPNS[i, t]
+                        - model.vEPS[i, t]
+                        == sum([model.vLineP[(i, j), t] for j in h.delta(i, model)])
                 )
 
             @model.Constraint(model.Buses, model.Time)
@@ -1113,19 +1134,35 @@ class V2G:
                 return model.vSij[i, j, t] >= -model.vCij[i, j, t] * math.tan(
                     value(model.pMax_AngDiff[i, j]))
 
-            @model.Constraint(model.Buses, model.Time)
-            def voltage_limit_min(model, i, t):
-                r"""
-                Minimum squared voltage magnitude at a bus.
+            if self.pEnable_Soft_Voltage_Limits:
 
-                .. math::
+                @model.Constraint(model.Buses, model.Time)
+                def voltage_soft_limit_min(model, i, t):
+                    if i == model.slack_bus: return Constraint.Skip
+                    # vVoltage_Undershoot >= (Vmin+delta)^2 - vCii  (zero if not violated)
+                    return model.vVoltage_Undershoot[i, t] >= (model.pVmin[i] + model.pSoft_Voltage_Limit) ** 2 - \
+                        model.vCii[i, t]
 
-                    V_{min,i}^2 \leq V_{ii,t}
-                """
-                if i != value(model.slack_bus):
-                    return (model.pVmin[i] ** 2 - model.vVoltage_Undershoot[i, t] <= model.vCii[i, t] )
-                else:
-                    return Constraint.Skip
+                @model.Constraint(model.Buses, model.Time)
+                def voltage_soft_limit_max(model, i, t):
+                    if i == model.slack_bus: return Constraint.Skip
+                    # vVoltage_Overshoot >= vCii - (Vmax-delta)^2  (zero if not violated)
+                    return model.vVoltage_Overshoot[i, t] >= model.vCii[i, t] - (
+                            model.pVmax[i] - model.pSoft_Voltage_Limit) ** 2
+            else:
+                @model.Constraint(model.Buses, model.Time)
+                def voltage_limit_min(model, i, t):
+                    r"""
+                    Minimum squared voltage magnitude at a bus.
+
+                    .. math::
+
+                        V_{min,i}^2 \leq V_{ii,t}
+                    """
+                    if i != value(model.slack_bus):
+                        return (model.pVmin[i] ** 2 - model.vVoltage_Undershoot[i, t] <= model.vCii[i, t])
+                    else:
+                        return Constraint.Skip
 
             @model.Constraint(model.Buses, model.Time)
             def voltage_limit_max(model, i, t):
@@ -1137,11 +1174,9 @@ class V2G:
                     V_{ii,t} \leq V_{max,i}^2
                 """
                 if i != value(model.slack_bus):
-                    return (model.vCii[i, t]  <= model.pVmax[i] ** 2 + model.vVoltage_Overshoot[i, t])
+                    return (model.vCii[i, t] <= model.pVmax[i] ** 2 + model.vVoltage_Overshoot[i, t])
                 else:
                     return Constraint.Skip
-
-            @model.Constraint(model.Branches, model.Time)
 
             @model.Constraint(model.Branches, model.Time)
             def power_flow_active_constraint(model, i, j, t):
@@ -1229,9 +1264,8 @@ class V2G:
 
         model.ens_cost = Expression(
             expr=(sum(model.vSoc_n[ev, t] + model.vSoc_p[ev, t] for ev in model.EVs for t in model.Time)
-                + sum(model.vPNS[i, t] + model.vEPS[i, t] for i in model.Buses for t in model.Time)
-                        ) * model.pPenality
-        )
+                  + sum(model.vPNS[i, t] + model.vEPS[i, t] for i in model.Buses for t in model.Time)
+                  ) * model.pPenality)
 
         model.charging_investment_cost = Expression(
             expr=sum(model.vCh_cap_EV[i] for i in model.Buses) * model.pCh_Inf_Cost)
@@ -1239,7 +1273,8 @@ class V2G:
         if self.pEnable_Soft_Line_Limits:
             model.soft_line_limits_penalty = Expression(
                 expr=(
-                    sum(model.vLineOverload[(i, j), t] for (i, j) in model.Branches for t in model.Time) * 0.5 * model.pPenality
+                        sum(model.vLineOverload[(i, j), t] for (i, j) in model.Branches for t in
+                            model.Time) * 0.5 * model.pPenality
                 )
             )
         else:
@@ -1250,8 +1285,8 @@ class V2G:
         if self.pEnable_Soft_Voltage_Limits:
             model.soft_voltage_limits_penalty = Expression(
                 expr=(
-                    sum(model.vVoltage_Undershoot[i, t] + model.vVoltage_Overshoot[i, t]
-                        for i in model.Buses for t in model.Time) * 0.1 * model.pPenality
+                        sum(model.vVoltage_Undershoot[i, t] + model.vVoltage_Overshoot[i, t]
+                            for i in model.Buses for t in model.Time) * 0.1 * model.pPenality
                 )
             )
         else:
@@ -1318,44 +1353,44 @@ class V2G:
                     where:
                     - \(ChCap_i\) = installed charging capacity at bus i
                     - \(p_{Ch\_cost}\) = cost per unit of charging capacity in MW
-                    
+
                 5. **Soft line loading limit violation penalty (optional):**
 
                 .. math::
-        
+
                     Cost_{line} =
                     \alpha_{line} \cdot p_{pen}
                     \cdot \sum_{(i,j) \in Branches} \sum_{t \in T} Overload_{(i,j),t}
-        
+
                 where:
                 - \(Overload_{(i,j),t}\) = line loading slack variable for branch (i,j) at time t
                 - \(\alpha_{line}\) = weighting factor for line limit violations (here: 0.5)
                 - \(p_{pen}\) = global penalty factor
-        
+
                 This term is only active if `pEnable_Soft_Line_Limits = True`.
                 It penalizes deviation from the soft line thermal limits encouraging the model to stay within tighter physical line limits if possible.
-        
+
                 6. **Soft voltage limit violation penalty (optional):**
-            
+
                     .. math::
-            
+
                         Cost_{voltage} =
                         \alpha_{volt} \cdot p_{pen}
                         \cdot \sum_{i \in Buses} \sum_{t \in T}
                         (V^{under}_{i,t} + V^{over}_{i,t})
-            
+
                     where:
                     - \(V^{under}_{i,t}\) = voltage undershoot slack at bus i, time t
                     - \(V^{over}_{i,t}\) = voltage overshoot slack at bus i, time t
                     - \(\alpha_{volt}\) = weighting factor for voltage violations (here: 0.1)
                     - \(p_{pen}\) = global penalty factor
-            
+
                     This term is only active if `pEnable_Soft_Voltage_Limits = True`.
                     It penalizes deviations from the soft voltage bounds encouraging the model to stay in tighter voltage bounds if possible.
-                    
+
                 Overall, the objective function minimizes total system cost while allowing
                 prioritized relaxation of network constraints via weighted soft penalties.
-                """
+                            """
         )
 
         self.model = model
@@ -1504,14 +1539,13 @@ if __name__ == '__main__':
                               default_config_path="config_template.yml")  # copy the default config file if it does not exist
     if not os.path.exists("plot_config.yml"):
         h.copy_default_config(config_path="plot_config.yml", default_config_path="plot_config_template.yml")
-
     else:
-        v2g = V2G() # Initialize the V2G class
-        v2g.get_data() # Load data from the database
-        v2g.extract_generator_params() # Extract generator data and generate parameters
-        v2g.preprocess_data() # Preprocess the data
-        # v2g.plot_network(input_only=True) # Plot the network with the input data. Not currently available in the public version
-        v2g.create_model() # Create the Pyomo model
-        v2g.solve_model() # Solve the Pyomo model
-        v2g.export_results() # Export the results to a SQLite database
-        # v2g.plot_network() # Plot the network with the result data. Not currently available in the public version
+        v2g = V2G()  # Initialize the V2G class
+        v2g.get_data()  # Load data from the database
+        v2g.extract_generator_params()  # Extract generator data and generate parameters
+        v2g.preprocess_data()  # Preprocess the data
+        # v2g.plot_network(input_only=True) # Plot the network with the input data. Not available in the public version
+        v2g.create_model()  # Create the Pyomo model
+        v2g.solve_model()  # Solve the Pyomo model
+        v2g.export_results()  # Export the results to a SQLite database
+        # v2g.plot_network() # Plot the network with the result data. Not available in the public version
