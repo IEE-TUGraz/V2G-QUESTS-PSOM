@@ -28,6 +28,7 @@ sd.get_data()
 """
 import numpy as np
 import pandas as pd
+import os
 
 from submodules import data_helper as dh
 
@@ -37,14 +38,14 @@ np.random.seed(66) # Random seed for reproducibility
 class SystemData:
     """
     Container and helper for system input data used in the V2G model.
-    
-    
+
+
     The class collects raw inputs (buses, branches, generators, EV traces,
     price data, capacity data) and exposes them as pandas DataFrames and
     lightweight numpy objects. Each `get_*` method calls a corresponding
     `data_helper` function and keeps the results as attributes for later use.
-    
-    
+
+
     Parameters
     ----------
     num_t : int
@@ -69,8 +70,8 @@ class SystemData:
     Optional precalculated availability matrix. If None the matrix is
     created by :meth:`get_availability_matrix` which calls
     ``dh.create_availability_matrix``.
-    
-    
+
+
     Attributes
     ----------
     net : optional
@@ -273,8 +274,10 @@ class SystemData:
             'in[h]': 'arrival_time [h]',
             'out[h]': 'departure_time [h]'
         }, inplace=True)
+        # Update group/dep column names after rename
+        group_col = 'vehicle_name' if 'vehicle_name' in self.evs_df.columns else group_col
 
-        # Define probabilities per group
+        # Define prior probabilities per archetype group
         ev_probs = {
             'EV1': 0.10,
             'EV2': 0.20,
@@ -290,32 +293,57 @@ class SystemData:
             'V2G5': 0.25
         }
 
-        # Helper function to sample variant based on type
+        # Build SOC_max lookup from battery data: variant -> SOC_max
+        soc_max_lookup = self.ev_battery_data.set_index('variant')['SOC_max'].to_dict()
+
+        # Per-vehicle maximum demand (used to filter eligible variants)
+        vehicle_id_col = group_col
+        max_demand_per_vehicle = (
+            self.evs_df.groupby(vehicle_id_col)['EV_demand [MWh]'].max()
+        )
+
         rng = np.random.RandomState(random_state) if random_state is not None else np.random
 
-        def sample_variant_for_type(ev_type):
+        def sample_variant_demand_aware(ev_type: str, max_demand: float):
+            """
+            Sample a variant from the prior distribution, restricted to variants
+            whose SOC_max can cover the vehicle's maximum observed trip demand.
+            Prior probabilities are renormalized over eligible variants.
+            Falls back to the variant with the largest SOC_max if no variant
+            satisfies the constraint (should not occur with realistic data).
+            """
             if ev_type == "EV":
-                return rng.choice(list(ev_probs.keys()), p=list(ev_probs.values()))
+                prior = ev_probs
             elif ev_type == "V2G":
-                return rng.choice(list(v2g_probs.keys()), p=list(v2g_probs.values()))
+                prior = v2g_probs
             else:
                 return None
 
-        # Choose the column that identifies a vehicle (prefer vehicle_name then vehicle_id)
-        vehicle_id_col = 'vehicle_name' if 'vehicle_name' in self.evs_df.columns else (
-            'vehicle_id' if 'vehicle_id' in self.evs_df.columns else group_col)
+            eligible = {v: p for v, p in prior.items()
+                        if soc_max_lookup.get(v, 0.0) >= max_demand}
 
-        # Build a mapping vehicle -> variant (based on that vehicle's type)
+            if not eligible:
+                # Fallback: pick the variant with the largest SOC_max for this type
+                candidates = {v: soc_max_lookup[v] for v in prior if v in soc_max_lookup}
+                fallback = max(candidates, key=candidates.get)
+                return fallback
+
+            variants = list(eligible.keys())
+            weights = np.array([eligible[v] for v in variants], dtype=float)
+            weights /= weights.sum()  # renormalize
+            return rng.choice(variants, p=weights)
+
+        # Build a mapping vehicle -> variant using demand-aware sampling
         variant_map = {}
         for veh in self.evs_df[vehicle_id_col].unique():
-            # pick a representative type for the vehicle (most common / first)
-            types = self.evs_df.loc[self.evs_df[vehicle_id_col] == veh, 'type']
+            rows = self.evs_df.loc[self.evs_df[vehicle_id_col] == veh]
+            types = rows['type']
             if types.empty:
-                chosen = None
-            else:
-                ev_type = types.mode().iat[0] if not types.mode().empty else types.iloc[0]
-                chosen = sample_variant_for_type(ev_type)
-            variant_map[veh] = chosen
+                variant_map[veh] = None
+                continue
+            ev_type = types.mode().iat[0] if not types.mode().empty else types.iloc[0]
+            max_demand = max_demand_per_vehicle.get(veh, 0.0)
+            variant_map[veh] = sample_variant_demand_aware(ev_type, max_demand)
 
         # Map the variant back to every row for that vehicle
         self.evs_df['variant'] = self.evs_df[vehicle_id_col].map(variant_map)
@@ -327,9 +355,19 @@ class SystemData:
             how='left'
         )
         self.evs_df.rename(columns={'SOC_max': 'EV_SOC_max [MWh]',
-                                         'ch': 'Ev_ch_max [MW]',
-                                         'dch': 'Ev_dch_max [MW]'}, inplace=True)
+                                    'ch': 'Ev_ch_max [MW]',
+                                    'dch': 'Ev_dch_max [MW]'}, inplace=True)
 
+        # Sanity check: log any vehicles where demand still exceeds SOC_max
+        violations = self.evs_df[self.evs_df['EV_demand [MWh]'] > self.evs_df['EV_SOC_max [MWh]']]
+        if not violations.empty:
+            print(f"WARNING: {violations[vehicle_id_col].nunique()} vehicle(s) still have "
+                  f"EV_demand > EV_SOC_max after demand-aware assignment. "
+                  f"Check battery data coverage.")
+        else:
+            print("Demand-aware variant assignment: all vehicles satisfy SOC_max >= max demand.")
+
+        print('Added EV demand and variant data. Sample of enriched EV table:')
         return self.evs_df
 
     def get_availability_matrix(self):
