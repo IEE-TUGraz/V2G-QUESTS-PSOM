@@ -1493,17 +1493,24 @@ class V2G:
         -------
         None
         """
-
+        # Solver Options
+        # Gurobi Persistent for QCQP/MIQP formulations, allows for more numerically exact solutions with longer solving times. Change to "gurobi" for faster solving. (This increases the possibility of suboptimal termination)
+        # If gurobi_persistent still leads to suboptimal termination increase numerical focus or allow BarHomogenous solving. (also increases solving time)
         start_time = time.time()
-        solver = SolverFactory('gurobi')
-        # Solve the model as MIP or rMIP based on the enable_rMIP flag
+        solver = SolverFactory('gurobi_persistent')
+        solver.set_instance(self.model, symbolic_solver_labels=True)
+        gurobi_model = solver._solver_model
+        gurobi_model.Params.BarHomogeneous = -1
+        gurobi_model.Params.NumericFocus = 1
+        gurobi_model.Params.BarConvTol = 1e-6
+
         if self.enable_rMIP:
             print('Solving model as a relaxed MIP (rMIP)')
             TransformationFactory('core.relax_integer_vars').apply_to(self.model)
             self.results = solver.solve(self.model, tee=True)
         else:
             print('Solving model as a MIP')
-            solver.options['mipgap'] = self.MIP_Gap  # Set optimal MIP gap (e.g.: 0.0001 = 0.10%)
+            solver.options['mipgap'] = self.MIP_Gap  # Set optimal MIP gap in the config file (e.g.: 0.0001 = 0.10%)
             self.results = solver.solve(self.model, tee=True)
 
         # Check solver status
