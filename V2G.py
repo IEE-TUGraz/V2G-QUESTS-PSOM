@@ -452,6 +452,30 @@ class V2G:
             else:
                 model.add_component('pSoft_Voltage_Limit', Param(initialize=0, domain=NonNegativeReals,
                                                                  doc='Soft limit for the SOCP voltage magnitude constraints (set to 0 if soft limits are disabled)'))
+
+        if self.pEnable_SOCP_Exactness_Penalty:
+            # Canonical (undirected) branch set: one entry per node pair, used to avoid
+            # imposing the exactness tightening constraint twice on mirrored branches.
+            model.CanonicalBranches = Set(dimen=2, initialize=[
+                (i, j) for (i, j) in dict.fromkeys(self.branches_df.index) if i < j
+            ], doc='One representative direction per undirected branch, used for SOCP exactness tightening')
+
+            model.add_component('pSOCP_Exactness_Epsilon',
+                                Param(initialize=self.pSOCP_Exactness_Epsilon, domain=NonNegativeReals,
+                                      doc='Absolute tolerance on the SOCP relaxation gap'
+                                          ' (vCii_i*vCii_j - vCij^2 - vSij^2), in p.u.^2'))
+
+            # Linearization point (previous solved values) for the convex majorant of the bilinear gap term.
+            # Populated from a first, untightened solve and then used to build a global convex over-estimator of the (nonconvex) SOCP relaxation gap.
+
+            model.pCii_lin = Param(model.Buses, model.Time, initialize=float(self.pV_slack) ** 2,
+                                   mutable=True,
+                                   doc='Linearization point for vCii used in the SOCP exactness majorant')
+            model.pCij_lin = Param(model.CanonicalBranches, model.Time, initialize=float(self.pV_slack) ** 2,
+                                   mutable=True,
+                                   doc='Linearization point for vCij used in the SOCP exactness majorant')
+            model.pSij_lin = Param(model.CanonicalBranches, model.Time, initialize=0.0, mutable=True,
+                                   doc='Linearization point for vSij used in the SOCP exactness majorant')
         # --------------------------------------------
         # Generator Parameters
         # --------------------------------------------
@@ -1325,6 +1349,44 @@ class V2G:
                     S_{ij,t} = -S_{ji,t}
                 """
                 return model.vSij[i, j, t] == -model.vSij[j, i, t]
+
+            if self.pEnable_SOCP_Exactness_Penalty:
+                @model.Constraint(model.CanonicalBranches, model.Time)
+                def socp_exactness_constraint(model, i, j, t):
+                    r"""
+                    Convex majorant tightening the SOCP relaxation gap toward exactness.
+
+                    The relaxation gap :math:`vCii_{i,t} \cdot vCii_{j,t} - vCij_{ij,t}^2 - vSij_{ij,t}^2`
+                    (always :math:`\geq 0` by ``socp_constraint``) is bilinear and therefore nonconvex.
+                    Using :math:`xy = \tfrac{1}{4}[(x+y)^2-(x-y)^2]`, the gap decomposes as a convex
+                    term minus a convex term; linearizing the subtracted (convex) term at the previous
+                    solved point :math:`(x_0, y_0, c_0, s_0)` yields a convex function that is a
+                    *global* upper bound on the true gap (a first-order tangent plane always lies
+                    below a convex function). Enforcing this convex majorant :math:`\leq \varepsilon`
+                    therefore guarantees the true relaxation gap is also :math:`\leq \varepsilon` at
+                    any feasible point, without requiring further iteration.
+
+                    .. math::
+
+                        \frac{(x+y)^2}{4} - \left[
+                            \frac{(x_0-y_0)^2}{4} + c_0^2 + s_0^2
+                            + \frac{x_0-y_0}{2}(x-x_0) - \frac{x_0-y_0}{2}(y-y_0)
+                            + 2c_0(c-c_0) + 2s_0(s-s_0)
+                        \right] \leq \varepsilon
+                    """
+                    x, y = model.vCii[i, t], model.vCii[j, t]
+                    c, s = model.vCij[i, j, t], model.vSij[i, j, t]
+                    x0, y0 = model.pCii_lin[i, t], model.pCii_lin[j, t]
+                    c0, s0 = model.pCij_lin[i, j, t], model.pSij_lin[i, j, t]
+
+                    b_lin = ((x0 - y0) ** 2 / 4 + c0 ** 2 + s0 ** 2
+                             + (x0 - y0) / 2 * (x - x0) - (x0 - y0) / 2 * (y - y0)
+                             + 2 * c0 * (c - c0) + 2 * s0 * (s - s0))
+
+                    return (x + y) ** 2 / 4 - b_lin <= model.pSOCP_Exactness_Epsilon
+
+                # Inactive until a first (untightened) solve provides the linearization point.
+                model.socp_exactness_constraint.deactivate()
         # --------------------------------------------
         # Cost expressions and Objective-function
         # --------------------------------------------
@@ -1470,6 +1532,72 @@ class V2G:
 
         print('Pyomo model created in', time.time() - start_time, 'seconds')
 
+    def _report_socp_gap_stats(self, label):
+        """
+        Print summary statistics of the SOCP relaxation gap
+        (``vCii_i*vCii_j - vCij**2 - vSij**2``) across all canonical branches and
+        timesteps, using the model's currently solved variable values.
+
+        Parameters
+        ----------
+        label : str
+            Short tag included in the printed output (e.g. ``'before tightening'``).
+
+        Returns
+        -------
+        int
+            Number of branch-timesteps whose gap exceeds ``pSOCP_Exactness_Epsilon``.
+        """
+        model = self.model
+        gaps = []
+        worst = None
+        for (i, j) in model.CanonicalBranches:
+            for t in model.Time:
+                gap = (value(model.vCii[i, t]) * value(model.vCii[j, t])
+                       - value(model.vCij[i, j, t]) ** 2 - value(model.vSij[i, j, t]) ** 2)
+                gaps.append(gap)
+                if worst is None or gap > worst[0]:
+                    worst = (gap, i, j, t)
+
+        n_over = sum(1 for g in gaps if g > value(model.pSOCP_Exactness_Epsilon))
+        print(f"SOCP relaxation gap ({label}): "
+              f"min={min(gaps):.6g}, mean={sum(gaps) / len(gaps):.6g}, max={worst[0]:.6g} "
+              f"at branch ({worst[1]}, {worst[2]}), t={worst[3]}; "
+              f"{n_over}/{len(gaps)} branch-timesteps exceed epsilon="
+              f"{value(model.pSOCP_Exactness_Epsilon):.6g}")
+        return n_over
+
+    def _run_solver(self, solver):
+        """
+        Run a single solve of ``self.model`` and report solver status.
+
+        Returns
+        -------
+        None
+        """
+        if self.enable_rMIP:
+            print('Solving model as a relaxed MIP (rMIP)')
+        else:
+            print('Solving model as a MIP')
+            solver.options['mipgap'] = self.MIP_Gap  # Set optimal MIP gap (e.g.: 0.0001 = 0.10%)
+
+        # load_solutions=False: an ambiguous/bad solver status (e.g. Gurobi's
+        # "infeasible or unbounded", which can come back as status=error through the
+        # file-based interface) makes Pyomo's default auto-load raise a ValueError
+        # from inside solve() itself, before this method ever regains control - which
+        # means the infeasibility diagnosis below never runs. Loading manually, only
+        # once we've confirmed the status is actually usable, avoids that.
+        self.results = solver.solve(self.model, tee=True, load_solutions=False)
+
+        # Check solver status
+        if self.results.solver.status == SolverStatus.ok and self.results.solver.termination_condition == TerminationCondition.optimal:
+            self.model.solutions.load_from(self.results)
+            print("Solver found an optimal solution.")
+            print("Optimal cost: ", value(self.model.obj))
+        else:
+            print("Solver did not find an optimal solution. Status:", self.results.solver.status)
+            print("Solver termination condition:", self.results.solver.termination_condition)
+
     def solve_model(self):
         """
         Solve the Pyomo optimization model using the Gurobi solver.
@@ -1481,7 +1609,13 @@ class V2G:
         3. Checks the solver's status and termination condition.
            - If the solution is optimal, prints the optimal cost.
            - Otherwise, prints solver status and termination information.
-        4. Iterates through the model's variables and optionally prints their values.
+        4. If ``Enable_SOCP_Exactness_Penalty`` is set (SOCP formulation only), linearizes
+           the SOCP relaxation gap at the just-solved point, activates the convex majorant
+           ``socp_exactness_constraint``, and re-solves once. This second solve is
+           guaranteed to satisfy the true (nonconvex) relaxation gap within
+           ``SOCP_exactness_epsilon`` — see the constraint's docstring in
+           :meth:`create_model` for the derivation.
+        5. Iterates through the model's variables and optionally prints their values.
 
         Notes
         -----
@@ -1493,33 +1627,46 @@ class V2G:
         -------
         None
         """
-        # Solver Options
-        # Gurobi Persistent for QCQP/MIQP formulations, allows for more numerically exact solutions with longer solving times. Change to "gurobi" for faster solving. (This increases the possibility of suboptimal termination)
-        # If gurobi_persistent still leads to suboptimal termination increase numerical focus or allow BarHomogenous solving. (also increases solving time)
+
         start_time = time.time()
+        # NumericFocus=3 and a loosened BarConvTol
+
         solver = SolverFactory('gurobi_persistent')
         solver.set_instance(self.model, symbolic_solver_labels=True)
         gurobi_model = solver._solver_model
         gurobi_model.Params.BarHomogeneous = -1
         gurobi_model.Params.NumericFocus = 1
         gurobi_model.Params.BarConvTol = 1e-6
-
         if self.enable_rMIP:
-            print('Solving model as a relaxed MIP (rMIP)')
             TransformationFactory('core.relax_integer_vars').apply_to(self.model)
-            self.results = solver.solve(self.model, tee=True)
-        else:
-            print('Solving model as a MIP')
-            solver.options['mipgap'] = self.MIP_Gap  # Set optimal MIP gap in the config file (e.g.: 0.0001 = 0.10%)
-            self.results = solver.solve(self.model, tee=True)
 
-        # Check solver status
-        if self.results.solver.status == SolverStatus.ok and self.results.solver.termination_condition == TerminationCondition.optimal:
-            print("Solver found an optimal solution.")
-            print("Optimal cost: ", value(self.model.obj))
-        else:
-            print("Solver did not find an optimal solution. Status:", self.results.solver.status)
-            print("Solver termination condition:", self.results.solver.termination_condition)
+        self._run_solver(solver)
+
+        first_solve_ok = (self.results.solver.status == SolverStatus.ok
+                           and self.results.solver.termination_condition == TerminationCondition.optimal)
+
+        if not first_solve_ok and self.pEnable_SOCP_Exactness_Penalty:
+            print('First solve did not reach optimal - skipping SOCP exactness tightening '
+                  '(nothing to linearize around; see the infeasibility diagnosis above).')
+        elif not self.dc_opf and self.pEnable_SOCP_Exactness_Penalty:
+            n_over = self._report_socp_gap_stats('before tightening')
+
+            if n_over == 0:
+                print('SOCP relaxation is already within epsilon everywhere - skipping tightening re-solve.')
+            else:
+                print('Tightening SOCP relaxation exactness (single majorant pass)')
+                model = self.model
+                for i in model.Buses:
+                    for t in model.Time:
+                        model.pCii_lin[i, t] = value(model.vCii[i, t])
+                for (i, j) in model.CanonicalBranches:
+                    for t in model.Time:
+                        model.pCij_lin[i, j, t] = value(model.vCij[i, j, t])
+                        model.pSij_lin[i, j, t] = value(model.vSij[i, j, t])
+                model.socp_exactness_constraint.activate()
+                self._run_solver(solver)
+
+                self._report_socp_gap_stats('after tightening')
 
         # Check variable values
         for var in self.model.component_objects(Var, active=False):
