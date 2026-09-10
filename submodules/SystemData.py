@@ -92,8 +92,9 @@ class SystemData:
     Binary availability matrix produced by the helper function.
     """
 
-    def __init__(self, num_t: int, start_t: int, case_study: str, enable_pv: bool, enable_wind: bool,
-                 enable_hydro: bool, year: int, pBatt_cap: int, pCharge_Invest: int, slack_bus: int):
+    def __init__(self, num_t: int, start_t: int, case_study: str, scenario: str, enable_pv: bool, enable_wind: bool,
+                 enable_hydro: bool, year: int, pBatt_cap: int, pCharge_Invest: int, pDoD_V2G: int, slack_bus: int,
+                 ev_type: str = "EV"):
         """
                 Initializes the SystemData object with configuration parameters and placeholders
                 for all relevant datasets used in the case study.
@@ -167,12 +168,17 @@ class SystemData:
                 None
                 """
         self.case_study = case_study
+        self.scenario = scenario
         self.num_t = num_t
         self.start_t = start_t
         self.enable_pv = enable_pv
         self.pBatt_cap = pBatt_cap
         self.pCharge_Invest = pCharge_Invest
+        self.pDoD_V2G = pDoD_V2G
         self.slack_bus = slack_bus
+        if ev_type not in ("EV", "V2G", "UC"):
+            raise ValueError(f"Invalid ev_type '{ev_type}' - must be 'EV', 'V2G', or 'UC'.")
+        self.ev_type = ev_type
         self.enable_wind = enable_wind
         self.enable_hydro = enable_hydro
         self.year = year
@@ -222,10 +228,53 @@ class SystemData:
         self.import_price_df = dh.load_price_data(self.case_study, self.num_t, self.start_t, self.year)
         self.import_price_df.rename(columns={'Price data': 'price'}, inplace=True)
 
-    def get_ev_data(self, random_state: int | None = None):
+    def _build_uc_dummy_ev(self) -> pd.DataFrame:
         """
-        Load and enrich EV trace data.
+        Build a single inert placeholder EV for uncontrolled-charging (UC) runs.
 
+        Under UC, real charging load is pre-baked directly into the nodal demand
+        time series (see :meth:`_apply_uc_dumb_charging_demand`), so the optimization
+        model must not treat any vehicle as genuinely flexible. This placeholder is
+        pinned to the slack bus, available for the entire simulated horizon, and has
+        zero trip demand and zero charge/discharge power - the optimizer can never do
+        anything with it. It exists purely so downstream code that assumes at least
+        one EV (``model.EVs``, the availability matrix, etc.) keeps working.
+
+        Notes
+        -----
+        ``departure_time [h]`` is set to ``self.num_t`` (one past the last valid
+        time index) rather than a fixed constant, so the vehicle is always
+        available for the full horizon regardless of ``num_t`` - and, critically,
+        never triggers ``create_availability_matrix``'s interactive
+        "repeat EV pattern? (y/n)" prompt, which fires whenever
+        ``num_t > max(departure_time)`` and would otherwise silently hang an
+        automated run.
+
+        Returns
+        -------
+        pd.DataFrame
+        Single-row EV table stored in ``self.evs_df``.
+        """
+        self.evs_df = pd.DataFrame([{
+            'vehicle_name': 'dummy_UC_vehicle',
+            'type': self.ev_type,
+            'node': self.slack_bus,
+            'arrival_time [h]': 0,
+            'departure_time [h]': self.num_t,
+            'EV_demand [MWh]': 0.0,
+            'variant': None,
+            'EV_SOC_max [MWh]': 0.0,
+            'Ev_ch_max [MW]': 0.0,
+            'Ev_dch_max [MW]': 0.0,
+            'eta_ch_EV': 1.0,
+            'eta_dch_EV': 1.0,
+            'SoC_init_EV': 0.0,
+        }])
+        return self.evs_df
+
+    def _load_real_ev_fleet(self, ev_type_for_sampling: str, random_state: int | None = None) -> pd.DataFrame:
+        """
+        Load and enrich the real EV trace data for ``self.scenario``.
 
         The method performs the following steps:
         - Load raw EV traces and a battery-spec lookup via ``dh``.
@@ -233,49 +282,58 @@ class SystemData:
         - Assign a sampled vehicle "variant" per vehicle (stochastic mapping)
         using pre-defined archetype probabilities.
         - Merge battery characteristics from the lookup into the trace table.
-
+        - Export the enriched table to ``output/ev_configuration_<case>_<scenario>.xlsx``.
 
         Parameters
         ----------
+        ev_type_for_sampling : str
+            'EV' or 'V2G' - which archetype pool to sample battery variants from.
+            Passed explicitly rather than always using ``self.ev_type`` so this same
+            loader can be reused to load the real fleet behind a UC run's
+            dumb-charging simulation (see :meth:`get_ev_data`), where ``self.ev_type``
+            is ``'UC'`` and would otherwise match neither pool.
         random_state : int | None, optional
         Seed for reproducible variant sampling. If ``None`` the global
         numpy RNG state is used.
 
-
         Returns
         -------
         pd.DataFrame
-        Enriched EV trace table stored in ``self.evs_df``.
+        Enriched EV trace table (not assigned to ``self.evs_df`` here - the caller
+        decides where it goes).
         """
-        self.evs_df = dh.load_ev_data(self.case_study)
+        evs_df = dh.load_ev_data(self.case_study, self.scenario)
         self.ev_battery_data = dh.load_ev_battery_data()
         # Copy & sort
-        self.evs_df = self.evs_df.copy()
-        self.evs_df = self.evs_df.sort_values(['agent', 'out[h]'])
+        evs_df = evs_df.copy()
+        evs_df = evs_df.sort_values(['agent', 'out [h]'])
 
         # Compute demand from cumulative ETC
-        group_col = 'agent' if 'agent' in self.evs_df.columns else (
-            'vehicle_name' if 'vehicle_name' in self.evs_df.columns else 'vehicle_id')
-        dep_col = 'departure_time [h]' if 'departure_time [h]' in self.evs_df.columns else (
-            'out[h]' if 'out[h]' in self.evs_df.columns else 'departure')
-        df_sorted = self.evs_df.sort_values([group_col, dep_col]).copy()
+        group_col = 'agent' if 'agent' in evs_df.columns else (
+            'vehicle_name' if 'vehicle_name' in evs_df.columns else 'vehicle_id')
+        dep_col = 'departure_time [h]' if 'departure_time [h]' in evs_df.columns else (
+            'out [h]' if 'out [h]' in evs_df.columns else 'departure')
+        df_sorted = evs_df.sort_values([group_col, dep_col]).copy()
         df_sorted['EV_demand [MWh]'] = (
-                df_sorted.groupby(group_col)['ETC [MWh]'].shift(-1) - df_sorted['ETC [MWh]']).fillna(0).clip(
+                abs(df_sorted.groupby(group_col)['ETC [MWh]'].shift(-1) - df_sorted['ETC [MWh]'])).fillna(0).clip(
             lower=0)
 
-        # Copy results back into self.evs_df while keeping its original row order
-        self.evs_df.loc[df_sorted.index, 'EV_demand [MWh]'] = df_sorted['EV_demand [MWh]']
+        # Copy results back into evs_df while keeping its original row order
+        evs_df.loc[df_sorted.index, 'EV_demand [MWh]'] = df_sorted['EV_demand [MWh]']
 
         # Rename columns
-        self.evs_df.rename(columns={
+        evs_df.rename(columns={
             'agent': 'vehicle_name',
-            'archetype': 'type',
             'osm_id': 'vehicle_id',
-            'in[h]': 'arrival_time [h]',
-            'out[h]': 'departure_time [h]'
+            'in [h]': 'arrival_time [h]',
+            'out [h]': 'departure_time [h]'
         }, inplace=True)
         # Update group/dep column names after rename
-        group_col = 'vehicle_name' if 'vehicle_name' in self.evs_df.columns else group_col
+        group_col = 'vehicle_name' if 'vehicle_name' in evs_df.columns else group_col
+
+        # Every vehicle in the fleet is the single global type configured for this run -
+        # no per-vehicle 'archetype'/'type' column is read from the source data anymore.
+        evs_df['type'] = ev_type_for_sampling
 
         # Define prior probabilities per archetype group
         ev_probs = {
@@ -299,7 +357,7 @@ class SystemData:
         # Per-vehicle maximum demand (used to filter eligible variants)
         vehicle_id_col = group_col
         max_demand_per_vehicle = (
-            self.evs_df.groupby(vehicle_id_col)['EV_demand [MWh]'].max()
+            evs_df.groupby(vehicle_id_col)['EV_demand [MWh]'].max()
         )
 
         rng = np.random.RandomState(random_state) if random_state is not None else np.random
@@ -333,33 +391,28 @@ class SystemData:
             weights /= weights.sum()  # renormalize
             return rng.choice(variants, p=weights)
 
-        # Build a mapping vehicle -> variant using demand-aware sampling
+        # Build a mapping vehicle -> variant using demand-aware sampling. Every vehicle
+        # shares the same ev_type_for_sampling, so no per-vehicle type lookup is needed.
         variant_map = {}
-        for veh in self.evs_df[vehicle_id_col].unique():
-            rows = self.evs_df.loc[self.evs_df[vehicle_id_col] == veh]
-            types = rows['type']
-            if types.empty:
-                variant_map[veh] = None
-                continue
-            ev_type = types.mode().iat[0] if not types.mode().empty else types.iloc[0]
+        for veh in evs_df[vehicle_id_col].unique():
             max_demand = max_demand_per_vehicle.get(veh, 0.0)
-            variant_map[veh] = sample_variant_demand_aware(ev_type, max_demand)
+            variant_map[veh] = sample_variant_demand_aware(ev_type_for_sampling, max_demand)
 
         # Map the variant back to every row for that vehicle
-        self.evs_df['variant'] = self.evs_df[vehicle_id_col].map(variant_map)
+        evs_df['variant'] = evs_df[vehicle_id_col].map(variant_map)
 
         # Merge battery specs (SOC_max, ch, dch) from lookup
-        self.evs_df = self.evs_df.merge(
+        evs_df = evs_df.merge(
             self.ev_battery_data[['variant', 'SOC_max', 'ch', 'dch', 'eta_ch_EV', 'eta_dch_EV', 'SoC_init_EV']],
             on='variant',
             how='left'
         )
-        self.evs_df.rename(columns={'SOC_max': 'EV_SOC_max [MWh]',
-                                    'ch': 'Ev_ch_max [MW]',
-                                    'dch': 'Ev_dch_max [MW]'}, inplace=True)
+        evs_df.rename(columns={'SOC_max': 'EV_SOC_max [MWh]',
+                                'ch': 'Ev_ch_max [MW]',
+                                'dch': 'Ev_dch_max [MW]'}, inplace=True)
 
         # Sanity check: log any vehicles where demand still exceeds SOC_max
-        violations = self.evs_df[self.evs_df['EV_demand [MWh]'] > self.evs_df['EV_SOC_max [MWh]']]
+        violations = evs_df[evs_df['EV_demand [MWh]'] > evs_df['EV_SOC_max [MWh]']]
         if not violations.empty:
             print(f"WARNING: {violations[vehicle_id_col].nunique()} vehicle(s) still have "
                   f"EV_demand > EV_SOC_max after demand-aware assignment. "
@@ -367,7 +420,130 @@ class SystemData:
         else:
             print("Demand-aware variant assignment: all vehicles satisfy SOC_max >= max demand.")
 
+        # Export enriched EV configuration to Excel
+        output_cols = [
+            'vehicle_name', 'type', 'node', 'arrival_time [h]', 'departure_time [h]',
+            'EV_demand [MWh]', 'variant', 'EV_SOC_max [MWh]', 'Ev_ch_max [MW]',
+            'Ev_dch_max [MW]', 'eta_ch_EV', 'eta_dch_EV', 'SoC_init_EV'
+        ]
+        os.makedirs('output', exist_ok=True)
+        evs_df[output_cols].to_excel(
+            os.path.join('output', f'ev_configuration_{self.case_study}_{self.scenario}.xlsx'),
+            sheet_name='adjusted_intervals_hrs',
+            index=False
+        )
+
         print('Added EV demand and variant data. Sample of enriched EV table:')
+        return evs_df
+
+    def _apply_uc_dumb_charging_demand(self, real_fleet_df: pd.DataFrame) -> None:
+        """
+        Simulate uncontrolled ("dumb") charging for the real fleet behind this UC run,
+        add the resulting nodal demand directly into ``self.demand_p_df`` in memory,
+        and stage the known per-EV/per-node/cost results for later export.
+
+        Ported from the former standalone ``Calculate_dumb_charging.py`` script -
+        no separate script invocation or manual demand-CSV swap is needed anymore.
+        Writes a debug CSV of the resulting demand for inspection only; nothing in
+        the pipeline reads it back.
+
+        Since the optimizer never sees the real fleet under UC (see
+        :meth:`_build_uc_dummy_ev`), this precomputed per-EV/per-node/cost detail is
+        the only place that data exists. It's staged here as instance attributes
+        (``self.uc_ev_charging_df``, ``self.uc_node_charging_total_df``,
+        ``self.uc_charging_cost_df``) rather than written to ``result.sqlite``
+        directly, since that database doesn't exist yet at this point in the
+        pipeline (data loading happens before the model is even built, let alone
+        solved) - ``V2G.export_results()`` writes them out after the solved model's
+        own tables, once the file actually exists.
+
+        Parameters
+        ----------
+        real_fleet_df : pd.DataFrame
+        Enriched real EV fleet table, as returned by :meth:`_load_real_ev_fleet`.
+
+        Returns
+        -------
+        None
+        """
+        charging_demand, per_vehicle_charging = dh.simulate_dumb_charging(real_fleet_df, self.num_t)
+        self.demand_p_df = dh.add_dumb_charging_to_demand(self.demand_p_df, charging_demand)
+
+        total_added = charging_demand.values.sum()
+        peak = charging_demand.values.max()
+        peak_node = charging_demand.max().idxmax()
+        peak_hour = charging_demand.max(axis=1).idxmax()
+        print(f"  UC dumb-charging demand added: {total_added:.4f} MWh total, "
+              f"peak {peak:.4f} MW (node {peak_node}, hour {peak_hour})")
+
+        os.makedirs('output', exist_ok=True)
+        debug_path = os.path.join('output', f'demand_data_uc_{self.case_study}_{self.scenario}.csv')
+        self.demand_p_df.to_csv(debug_path, index=False)
+        print(f"  Debug export (not read back by the pipeline): {debug_path}")
+
+        # Per-EV charging detail (vehicle_name, node, time, charge_MW) - known exactly,
+        # since it comes straight out of the simulation rather than a solved model.
+        self.uc_ev_charging_df = per_vehicle_charging
+
+        # Per-node charging total, long format matching the Pyomo-exported tables'
+        # own convention (index columns + 'values'), for consistency in result.sqlite.
+        self.uc_node_charging_total_df = (
+            charging_demand.rename_axis('time').reset_index()
+            .melt(id_vars='time', var_name='node', value_name='values')
+            [['node', 'time', 'values']]
+        )
+
+        # System-wide charging cost per timestep: total charge already known, multiplied
+        # by the already-loaded price series - the overall total is SUM(cost) over this.
+        price = self.import_price_df['price'].to_numpy()
+        total_charge_mw = charging_demand.sum(axis=1).to_numpy()
+        if len(price) != len(total_charge_mw):
+            raise ValueError(
+                f"Price series has {len(price)} timesteps but charging demand has "
+                f"{len(total_charge_mw)} - cannot align for cost calculation."
+            )
+        self.uc_charging_cost_df = pd.DataFrame({
+            'time': range(self.num_t),
+            'total_charge_MW': total_charge_mw,
+            'price': price,
+            'cost': total_charge_mw * price,
+        })
+        print(f"  UC charging cost: {self.uc_charging_cost_df['cost'].sum():.2f} total "
+              f"(price x known charging demand, precomputed)")
+
+    def get_ev_data(self, random_state: int | None = None):
+        """
+        Load and enrich EV trace data, or build the UC placeholder.
+
+        For ``ev_type`` 'EV'/'V2G', loads and enriches the real fleet for
+        ``self.scenario`` via :meth:`_load_real_ev_fleet`.
+
+        For ``ev_type`` 'UC', loads the real fleet under the 'EV' archetype pool
+        purely to simulate the resulting dumb-charging demand (added into
+        ``self.demand_p_df`` via :meth:`_apply_uc_dumb_charging_demand`), then
+        replaces ``self.evs_df`` with a single inert placeholder vehicle from
+        :meth:`_build_uc_dummy_ev`. The archetype pool choice doesn't affect the
+        simulated demand - it never reads discharge-related columns - it's just a
+        valid pool for the variant-sampling logic to draw from.
+
+        Parameters
+        ----------
+        random_state : int | None, optional
+        Seed for reproducible variant sampling. If ``None`` the global
+        numpy RNG state is used.
+
+        Returns
+        -------
+        pd.DataFrame
+        Enriched EV trace table (or the UC placeholder), stored in ``self.evs_df``.
+        """
+        if self.ev_type == "UC":
+            real_fleet_df = self._load_real_ev_fleet(ev_type_for_sampling="EV", random_state=random_state)
+            self._apply_uc_dumb_charging_demand(real_fleet_df)
+            self.evs_df = self._build_uc_dummy_ev()
+            return self.evs_df
+
+        self.evs_df = self._load_real_ev_fleet(ev_type_for_sampling=self.ev_type, random_state=random_state)
         return self.evs_df
 
     def get_availability_matrix(self):

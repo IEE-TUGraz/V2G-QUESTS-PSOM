@@ -25,6 +25,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import pyomo.core.base.set
 import pyomo.environ as pyo
+import pyomo.core.base.expression
+import pyomo.core.base.suffix
 from geopy import distance
 
 from submodules.helper_functions import load_config
@@ -144,8 +146,9 @@ def model_to_sqlite(model: pyo.base.Model, filename):
     ```
     """
     os.makedirs(os.path.dirname(filename), exist_ok=True)
-
     cnx = sqlite3.connect(filename)
+    cnx.execute("PRAGMA journal_mode=WAL") # Increases writing speed
+    cnx.execute("PRAGMA synchronous=OFF") # Speeds up writes but risks data integrity in case of crashes. Since there is only one write at the end this should be fine. Otherwise, change back to ON
     for o in model.component_objects():
         match type(o):
             case pyomo.core.base.set.OrderedScalarSet:
@@ -164,13 +167,18 @@ def model_to_sqlite(model: pyo.base.Model, filename):
             case pyomo.core.base.objective.ScalarObjective:
                 df = pd.DataFrame([pyo.value(o)], columns=['values'])
                 print(f"Pyomo-Type {type(o)} saved to SQLite")
+            case pyomo.core.base.expression.ScalarExpression:
+                df = pd.DataFrame([pyo.value(o)], columns=['values'])
+                print(f"Pyomo-Type {type(o)} saved to SQLite")
+            case pyomo.core.base.suffix.Suffix:
+                continue
             case pyomo.core.base.constraint.ConstraintList:  # Those will not be saved by decision
                 continue
             case _:
                 print(f"Pyomo-Type {type(o)} not implemented, {o.name} will not be saved to SQLite")
                 continue
         df.to_sql(o.name, cnx, if_exists='replace')
-        cnx.commit()
+    cnx.commit()
     cnx.close()
     pass
 
@@ -302,7 +310,7 @@ def build_demand_timeseries(case_study: str, num_t: int, start_t: int):
             interpolated_df[node] = interpolated_profile
 
         # Scale to the expected annual demand
-        total_annual_Mwh = 19447.200
+        total_annual_Mwh = 19447
         actual_total = interpolated_df.to_numpy().sum()
         scaling_factor = total_annual_Mwh / actual_total
         interpolated_df *= scaling_factor
@@ -625,37 +633,48 @@ def create_availability_matrix(evs: pd.DataFrame, Buses: pd.DataFrame, num_t: in
     return availability_matrix, availability_df
 
 
-def load_ev_data(case_study: str):
+import os
+import pandas as pd
+
+def load_ev_data(case_study: str, scenario: str):
     """
-    Load aggregated electric vehicle (EV) data for a given case study.
+    Load EV data for a given case study and scenario.
 
     Parameters
     ----------
     case_study : str
-        Name of the case study ('Kanaleneiland', 'Aradas', 'Annelinn').
+        ('Kanaleneiland', 'Aradas', 'Annelinn')
+    scenario : str
+        ('s0', 's1', ..., 's4')
 
     Returns
     -------
     pandas.DataFrame
-        DataFrame containing EV trip and availability data from the
-        'adjusted_intervals_hrs' sheet.
-
-    Raises
-    ------
-    ValueError
-        If the case study name is not recognized.
     """
-    if case_study == 'Kanaleneiland':
-        ev_filepath = os.path.join('data_preparation', 'Kanaleneiland', 'final_data',
-                                   'Kanaleneiland_vehicles_aggregated.xlsx')
-    elif case_study == 'Aradas':
-        ev_filepath = os.path.join('data_preparation', 'Aradas', 'final_data', 'Aradas_vehicles_aggregated.xlsx')
-    elif case_study == 'Annelinn':
-        ev_filepath = os.path.join('data_preparation', 'Annelinn', 'final_data', 'Annelinn_vehicles_aggregated.xlsx')
-    else:
-        raise ValueError(
-            f"Unknown case study: {case_study}. Please choose from 'Kanaleneiland', 'Aradas', or 'Annelinn'.")
-    ev_data_df = pd.read_excel(ev_filepath, sheet_name='adjusted_intervals_hrs', header=0)
+
+    valid_cases = ['Kanaleneiland', 'Aradas', 'Annelinn']
+    valid_scenarios = [f"s{i}" for i in range(6)]
+
+    if case_study not in valid_cases:
+        raise ValueError(f"Unknown case study: {case_study}")
+
+    if scenario not in valid_scenarios:
+        raise ValueError(f"Unknown scenario: {scenario}")
+
+    filename = f"{scenario}_{case_study}_schedule_vehicle.xlsx"
+
+    ev_filepath = os.path.join(
+        'data_preparation',
+        case_study,
+        'final_data',
+        filename
+    )
+
+    ev_data_df = pd.read_excel(
+        ev_filepath,
+        sheet_name='adjusted_intervals_hrs',
+        header=0
+    )
 
     return ev_data_df
 
@@ -678,6 +697,140 @@ def load_ev_battery_data():
     ev_battery_filepath = os.path.join('data_preparation', 'standard_ev_battery_data.xlsx')
     ev_battery_data_df = pd.read_excel(ev_battery_filepath, header=0)
     return ev_battery_data_df
+
+
+def simulate_dumb_charging(ev_config: pd.DataFrame, num_t: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Simulate hour-by-hour uncontrolled ("dumb") charging for every vehicle in
+    ``ev_config``.
+
+    When a vehicle arrives at a node it immediately starts charging at its maximum
+    charging power (``Ev_ch_max [MW]``) each hour until either the battery is full
+    (``SOC == EV_SOC_max [MWh]``) or the vehicle departs. The grid draw per hour
+    accounts for charging efficiency: ``grid_draw = min(ch_max, soc_max - soc) / eta_ch``.
+    On departure the trip energy demand (``EV_demand [MWh]``) is subtracted from the
+    SoC to represent the energy consumed while driving to the next location.
+
+    If ``num_t`` exceeds the EV data horizon, the EV behaviour pattern is repeated
+    cyclically for the remaining hours. The battery SoC carries over continuously
+    across repetitions - it is never reset - so the physical battery state remains
+    consistent.
+
+    Ported from the former standalone ``Calculate_dumb_charging.py`` script so it can
+    be called directly as part of the normal data-loading pipeline (see
+    :meth:`SystemData._apply_uc_dumb_charging_demand`), instead of requiring a separate
+    script run and a manual demand-CSV swap. Also now tracks and returns a per-vehicle
+    charging log alongside the aggregated per-node total, since - unlike a solved
+    Pyomo model - this per-vehicle detail is fully known ahead of the model run and
+    would otherwise be discarded.
+
+    Parameters
+    ----------
+    ev_config : pd.DataFrame
+        Enriched EV configuration table. Required columns: vehicle_name, node,
+        arrival_time [h], departure_time [h], EV_demand [MWh], EV_SOC_max [MWh],
+        Ev_ch_max [MW], eta_ch_EV, SoC_init_EV.
+    num_t : int
+        Number of time steps (hours) in the simulation horizon.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        - charging_demand : shape (num_t, num_nodes), additional charging demand per
+          node per hour (wide format, node columns).
+        - per_vehicle_charging : long-format table with columns
+          [vehicle_name, node, time, charge_MW], one row per (vehicle, hour) the
+          vehicle is physically present at a node (whether or not it draws power
+          that hour - e.g. already full). Hours where the vehicle is between trips
+          (no node) are omitted, since there is no node to attribute a row to.
+    """
+    ev_period = int(ev_config['departure_time [h]'].max()) + 1
+
+    if num_t > ev_period:
+        n_repeats = -(-num_t // ev_period)  # ceiling division
+        print(f"  EV data period : {ev_period} h - demand is {num_t} h "
+              f"({n_repeats} repetition(s) of EV behaviour will be used)")
+
+    nodes = sorted(ev_config['node'].unique())
+    charging_demand = pd.DataFrame(0.0, index=range(num_t), columns=nodes)
+    per_vehicle_records = []
+
+    vehicles = ev_config['vehicle_name'].unique()
+    for veh in vehicles:
+        trips = (ev_config[ev_config['vehicle_name'] == veh]
+                 .sort_values('arrival_time [h]')
+                 .reset_index(drop=True))
+
+        soc_max = float(trips['EV_SOC_max [MWh]'].iloc[0])
+        ch_max = float(trips['Ev_ch_max [MW]'].iloc[0])
+        eta_ch = float(trips['eta_ch_EV'].iloc[0])
+        soc = float(trips['SoC_init_EV'].iloc[0]) * soc_max
+
+        for t in range(num_t):
+            t_local = t
+
+            at_node = trips[
+                (trips['arrival_time [h]'] <= t_local) &
+                (trips['departure_time [h]'] > t_local)
+            ]
+
+            if not at_node.empty:
+                node = at_node['node'].iloc[0]
+                energy_added = min(ch_max, soc_max - soc)  # MWh added to battery
+                grid_draw = energy_added / eta_ch  # MWh drawn from grid
+                charging_demand.loc[t, node] += grid_draw
+                soc += energy_added
+                per_vehicle_records.append({
+                    'vehicle_name': veh, 'node': node, 'time': t, 'charge_MW': grid_draw
+                })
+            else:
+                just_departed = trips[trips['departure_time [h]'] == t_local]
+                if not just_departed.empty:
+                    demand = float(just_departed['EV_demand [MWh]'].iloc[0])
+                    soc = max(0.0, soc - demand)
+
+    per_vehicle_charging = pd.DataFrame(per_vehicle_records,
+                                        columns=['vehicle_name', 'node', 'time', 'charge_MW'])
+    return charging_demand, per_vehicle_charging
+
+
+def add_dumb_charging_to_demand(demand_df: pd.DataFrame,
+                                 charging_demand: pd.DataFrame) -> pd.DataFrame:
+    """
+    Add pre-calculated dumb-charging demand to an existing nodal demand DataFrame.
+
+    Nodes present in ``charging_demand`` but absent in ``demand_df`` are added as new
+    columns (initialised to 0 before addition). The number of rows must match.
+
+    Ported from the former standalone ``Calculate_dumb_charging.py`` script.
+
+    Parameters
+    ----------
+    demand_df : pd.DataFrame
+        Original nodal demand, shape (num_t, num_nodes).
+    charging_demand : pd.DataFrame
+        Additional charging demand, shape (num_t, num_nodes).
+
+    Returns
+    -------
+    pd.DataFrame
+        Updated demand DataFrame with dumb-charging load included.
+    """
+    if len(demand_df) != len(charging_demand):
+        raise ValueError(
+            f"Row count mismatch: demand_data has {len(demand_df)} rows "
+            f"but charging_demand has {len(charging_demand)} rows. "
+            "Check that num_t matches the demand data."
+        )
+
+    updated = demand_df.copy()
+    for node in charging_demand.columns:
+        if node not in updated.columns:
+            print(f"  Note: node '{node}' not found in demand data - adding as new column.")
+            updated[node] = 0.0
+        updated[node] = updated[node].astype(float) + charging_demand[node].values
+
+    return updated
 
 
 def load_generator_data(case_study: str, year: int):
@@ -771,7 +924,7 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     ValueError
         If the case study is not recognized or required columns are missing.
     """
-    line_parameters_filepath = r"data_preparation\standard_line_parameters.xlsx"
+    line_parameters_filepath = r"data_preparation\standard_line_parameter.xlsx"
     parameter_filepath = os.path.join('case_studies', 'standard_parameter.yml')
     parameter = load_config(parameter_filepath)
     standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
@@ -811,7 +964,6 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     pMin_Ang = parameter["Min_Ang"]
     pMax_Ang = parameter["Max_Ang"]
     pSBase = parameter["SBase"]
-
     # Collect bus data as a list of dicts
     bus_rows = []
 
@@ -894,8 +1046,7 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
         # Set slack node parameters
         slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 850].iloc[0]
         # Define types for the remaining lines (excluding slack node and fixed line) From the standard parameters excluding! the given types. Those get randomly assigned
-        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin(
-            [850, 756, 650, 630, 535, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
+        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([850, 756, 650, 630, 535, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
 
 
     elif case_study == 'Aradas':
@@ -943,15 +1094,14 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
             frozenset(['Node_30', 'Node_11']): 185,
         }
 
-        slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 850].iloc[0]
-        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin(
-            [850, 756, 650, 630, 441, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
+        slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] ==850].iloc[0]
+        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([850, 756, 650, 630, 441, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
 
 
     elif case_study == 'Annelinn':
 
         fixed_line_types = {
-            # ----------------------------------------South
+            #----------------------------------------South
             frozenset(['Node_38', 'Node_22']): 185,
             frozenset(['Node_22', 'Node_24']): 185,
 
@@ -982,8 +1132,7 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
 
         }
         slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 850].iloc[0]
-        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin(
-            [850, 756, 650, 535, 441, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
+        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([850, 756, 650, 535, 441, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
 
     standard_line_data['fixed_type'] = standard_line_data.apply(
         lambda r: fixed_line_types.get(frozenset([r['i'], r['j']]), None),  # Returns type number or None
@@ -992,12 +1141,12 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     params_by_type = standard_line_parameters_df.set_index('Type')
 
     def assign_params(row):
-        # 1) Slack-connected lines
-        if row['connected_to_slack']:
-            return pd.Series(slack_node_params)
-        # 2) Explicitly specified lines
+        # 1) Explicitly specified lines (highest priority — overrides slack default too)
         if pd.notna(row['fixed_type']):
             return pd.Series(params_by_type.loc[row['fixed_type']])
+        # 2) Slack-connected lines
+        if row['connected_to_slack']:
+            return pd.Series(slack_node_params)
         # 3) All remaining lines → random
         return other_types.sample(1).iloc[0]
 
@@ -1009,7 +1158,7 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     line_data['pRLine'] = (final_data['r'] / pSBase) * line_data['length_km']
     line_data['pXLine'] = (final_data['x'] / pSBase) * line_data['length_km']
     line_data['pSmax_line'] = final_data['Smax']
-    line_data['pPmax_line'] = 0.9 * final_data['Smax']
+    line_data['pPmax_line'] = 1 * final_data['Smax']
     line_data['pMin_AngDiff'] = math.radians(-parameter['Max_AngDiff'])
     line_data['pMax_AngDiff'] = math.radians(parameter['Max_AngDiff'])
     # Calculate pGLine and pBLine

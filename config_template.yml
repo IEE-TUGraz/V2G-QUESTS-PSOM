@@ -33,7 +33,7 @@ pBatt_cap: 8 # Total decentral Storage Capacity for the region in MWh
 # Electric Vehicle configuration
 ev_type: EV # Global vehicle type applied to every vehicle in the fleet: 'EV' (no discharge capability), 'V2G' (bidirectional charging/discharging), or 'UC' (uncontrolled/dumb charging - 'scenario' still selects the real fleet behavior pattern, but the optimizer only ever sees a single inert placeholder vehicle; the resulting dumb-charging demand is simulated and added to the nodal demand automatically in the same run, see SystemData._apply_uc_dumb_charging_demand)
 pCharge_Invest: 1.3e-3 # Public charger invest per EV in MW
-pDoD_V2G: 0.2 # Depth of discharge for the EV battery in p.u. during V2G operation (e.g.: 0.2 = 20% of the battery capacity can be used for V2G operation)
+pDoD_V2G: 0.8 # Depth of discharge for the EV battery in p.u. during V2G operation (e.g.: 0.2 = 20% of the battery capacity can be used for V2G operation)
 
 
 # SOCP relaxation configuration

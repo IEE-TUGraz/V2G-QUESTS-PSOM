@@ -8,6 +8,7 @@ import pandas as pd
 from pyomo.environ import ConcreteModel, Var, NonNegativeReals, Objective, minimize, Constraint, Param, value, \
     SolverFactory, TransformationFactory, Binary, Reals, Set, Any, Expression
 from pyomo.opt import SolverStatus, TerminationCondition
+from collections import defaultdict
 
 from submodules import SystemData as sd
 from submodules import data_helper as dh
@@ -92,6 +93,7 @@ class V2G:
         self.enable_rMIP = bool(config['enable_rMIP'])
         self.MIP_Gap = config['MIP_Gap']
         self.case_study = config['case_study']
+        self.scenario = config['scenario']
         self.dc_opf = bool(config['dc_opf'])
         self.start_t = config['start_t']
         self.num_t = config['num_t']
@@ -104,6 +106,10 @@ class V2G:
         self.year = config['year']
         self.pBatt_cap = config['pBatt_cap']
         self.pCharge_Invest = config['pCharge_Invest']
+        self.pDoD_V2G = config['pDoD_V2G']
+        self.ev_type = config.get('ev_type', 'EV')
+        if self.ev_type not in ('EV', 'V2G', 'UC'):
+            raise ValueError(f"Invalid ev_type '{self.ev_type}' in config.yml - must be 'EV', 'V2G', or 'UC'.")
         self.pQfactor = config['pQfactor']
         self.pV_slack = config['pV_slack']
         self.pCh_Inf_Cost = config['pCh_Inf_Cost']
@@ -112,6 +118,8 @@ class V2G:
         self.pEnable_Soft_Voltage_Limits = config.get('Enable_Soft_Voltage_Limits', False)
         self.pSoft_Line_Limit = config.get('Line_soft_limit')
         self.pSoft_Voltage_Limit = config.get('V_soft_limit')
+        self.pEnable_SOCP_Exactness_Penalty = config.get('Enable_SOCP_Exactness_Penalty', False)
+        self.pSOCP_Exactness_Epsilon = float(config.get('SOCP_exactness_epsilon', 1e-4))
 
         # Initialize placeholders for the Pyomo model and solver results
         self.model = None  # Pyomo model object
@@ -140,8 +148,8 @@ class V2G:
         - Relies on ``sd.SystemData`` to provide the data attributes listed above.
         - Uses ``time`` for timing.
         - Requires that the following instance attributes are already set:
-            - ``num_t``, ``start_t``, ``case_study``, ``enable_pv``, ``enable_wind``,
-              ``enable_hydro``, ``year``, ``pBatt_cap``, ``pCharge_Invest``
+            - ``num_t``, ``start_t``, ``case_study``, ``scenario``, ``enable_pv``, ``enable_wind``,
+              ``enable_hydro``, ``year``, ``pBatt_cap``, ``pCharge_Invest``, ``pDoD_V2G``, ``slack_bus``, ``ev_type``
 
         Returns
         -------
@@ -153,9 +161,9 @@ class V2G:
         print('Loading system data')
 
         # instantiate SystemData with configuration values and load the data
-        case_study = sd.SystemData(self.num_t, self.start_t, self.case_study, self.enable_pv, self.enable_wind,
-                                   self.enable_hydro, self.year, self.pBatt_cap, self.pCharge_Invest, self.slack_bus)
-
+        case_study = sd.SystemData(self.num_t, self.start_t, self.case_study, self.scenario, self.enable_pv,
+                                   self.enable_wind, self.enable_hydro, self.year, self.pBatt_cap, self.pCharge_Invest, self.pDoD_V2G, self.slack_bus,
+                                   ev_type=self.ev_type)
         case_study.get_data()
 
         # map loaded data to instance attributes for downstream usage
@@ -173,6 +181,11 @@ class V2G:
         self.distributed_batt_data_df = case_study.distributed_batt_data_df
         self.evs_df = case_study.evs_df
         self.availability_matrix = case_study.availability_matrix
+        # Precomputed UC EV-charging results, only populated when ev_type == "UC"
+        # (see SystemData._apply_uc_dumb_charging_demand); None otherwise.
+        self.uc_ev_charging_df = getattr(case_study, 'uc_ev_charging_df', None)
+        self.uc_node_charging_total_df = getattr(case_study, 'uc_node_charging_total_df', None)
+        self.uc_charging_cost_df = getattr(case_study, 'uc_charging_cost_df', None)
 
         # report elapsed time
         print('Data Loaded in', time.time() - start_time, 'seconds')
@@ -292,6 +305,10 @@ class V2G:
         # create availability dict for EVs at nodes over time
         self.availability_dict = self.availability_matrix.set_index(['vehicle', 'node', 'time'])['available'].astype(
             int).to_dict()
+
+        self.evs_at_node_time = defaultdict(list)
+        for (ev, bus, t) in self.availability_matrix.set_index(['vehicle', 'node', 'time']).index:
+            self.evs_at_node_time[(bus, t)].append(ev)
 
         print('Data preprocessed in', time.time() - start_time, 'seconds')
 
@@ -456,7 +473,7 @@ class V2G:
         # --------------------------------------------
         # EV Parameters
         # --------------------------------------------
-        model.add_component('pEV_SOC_max', Param(model.EVs, initialize=self.evs_df.set_index('vehicle_name')[
+        model.add_component('pEV_SoC_max', Param(model.EVs, initialize=self.evs_df.set_index('vehicle_name')[
             'EV_SOC_max [MWh]'].astype(float).to_dict(), domain=NonNegativeReals,
                                                  doc='Maximum SoC of EVs'))
 
@@ -476,12 +493,15 @@ class V2G:
             'Ev_dch_max [MW]'].astype(float).to_dict(), domain=NonNegativeReals,
                                                 doc='Maximum discharging power of EVs'))
 
-        model.add_component('pEV_SOC_init', Param(model.EVs, initialize=self.evs_df.set_index('vehicle_name')[
+        model.add_component('pEV_SoC_init', Param(model.EVs, initialize=self.evs_df.set_index('vehicle_name')[
             'SoC_init_EV'].astype(float).to_dict(),
                                                   doc='Initial state of charge of EVs'))
 
         model.add_component('pCh_Inf_Cost', Param(initialize=self.pCh_Inf_Cost, domain=Reals,
                                                   doc='Charging infrastructure cost per MW'))
+
+        model.add_component('pDoD_V2G', Param(initialize=self.pDoD_V2G, domain=NonNegativeReals,
+                                              doc='Depth of discharge for V2G usage'))
 
         # Create a dictionary mapping each EV's name and departure time to its energy demand.
         # The `evs_df` DataFrame is indexed by 'vehicle_name' and 'departure_time [h]',
@@ -489,7 +509,7 @@ class V2G:
         soc_dict = self.evs_df.set_index(['vehicle_name', 'departure_time [h]'])['EV_demand [MWh]'].astype(
             float).to_dict()
 
-        model.add_component('pSOC_final',
+        model.add_component('pSoC_final',
                             Param(model.EVs, model.Time, initialize=lambda m, ev, t: soc_dict.get((ev, t), 0),
                                   domain=NonNegativeReals,
                                   doc='Required SoC at departure of EVs'))
@@ -512,11 +532,11 @@ class V2G:
                             Param(initialize=float(self.distributed_batt_data_df['eta_dch_batt'].iat[0]),
                                   doc='Discharging efficiency of decentralized batteries'))
 
-        model.add_component('pBatt_SOC_init',
+        model.add_component('pBatt_SoC_init',
                             Param(initialize=float(self.distributed_batt_data_df['SoC_init_batt'].iat[0]),
                                   doc='Initial state of charge of decentralized batteries'))
 
-        model.add_component('pBatt_SOC_min', Param(initialize=float(self.distributed_batt_data_df['DoD_batt'].iat[0]),
+        model.add_component('pBatt_SoC_min', Param(initialize=float(1-self.distributed_batt_data_df['DoD_batt'].iat[0]),
                                                    doc='Depth of discharge of decentralized batteries'))
 
         model.add_component('pC_rate_batt', Param(initialize=float(self.distributed_batt_data_df['C_rate_batt'].iat[0]),
@@ -549,15 +569,15 @@ class V2G:
         # --------------------------------------------
         # EV Variables
         # --------------------------------------------
-        model.vSoc_EV = Var(model.EVs, model.Time, domain=NonNegativeReals,
+        model.vSoC_EV = Var(model.EVs, model.Time, domain=NonNegativeReals,
                             doc='State of Charge of EVs')
         model.vCh_EV = Var(model.EVs, model.Time, domain=NonNegativeReals,
                            doc='Charging Amount of EVs')
         model.vDch_EV = Var(model.EVs, model.Time, domain=NonNegativeReals,
                             doc='Discharging Amount of EVs')
-        model.vSoc_n = Var(model.EVs, model.Time, domain=NonNegativeReals,
+        model.vSoC_n = Var(model.EVs, model.Time, domain=NonNegativeReals,
                            doc='Slack variable for undercharging EVs')
-        model.vSoc_p = Var(model.EVs, model.Time, domain=NonNegativeReals,
+        model.vSoC_p = Var(model.EVs, model.Time, domain=NonNegativeReals,
                            doc='Slack variable for overcharging EVs')
         model.vbCh_EV = Var(model.EVs, model.Time, domain=Binary,
                             doc='Binary variable to avoid charging and discharging of EVs at the same time')
@@ -575,7 +595,7 @@ class V2G:
         # --------------------------------------------
         # Storage Variables
         # --------------------------------------------
-        model.vSOC_Batt = Var(model.Buses, model.Time, domain=NonNegativeReals,
+        model.vSoC_Batt = Var(model.Buses, model.Time, domain=NonNegativeReals,
                               doc='State of Charge of Batteries at Buses')
 
         model.vCh_Batt = Var(model.Buses, model.Time, domain=NonNegativeReals,
@@ -710,18 +730,18 @@ class V2G:
 
             .. math::
 
-                SOC_{i,0} = pBus\_batt\_cap_i \cdot pBatt\_SoC\_init
+                SoC_{i,0} = pBus\_batt\_cap_i \cdot pBatt\_SoC\_init
 
-                SOC_{i,t} = SOC_{i,t-1}
+                SoC_{i,t} = SoC_{i,t-1}
                            + \eta_{ch} \cdot Ch_{i,t-1}
                            - \frac{Dch_{i,t-1}}{\eta_{dch}}, \quad t > 0
             """
             if t == model.Time.first():
-                return model.vSOC_Batt[i, t] == model.pBus_batt_cap[i] * model.pBatt_SOC_init
+                return model.vSoC_Batt[i, t] == model.pBus_batt_cap[i] * model.pBatt_SoC_init
             else:
                 return (
-                        model.vSOC_Batt[i, t] ==
-                        model.vSOC_Batt[i, t - 1]
+                        model.vSoC_Batt[i, t] ==
+                        model.vSoC_Batt[i, t - 1]
                         + model.vCh_Batt[i, t - 1] * model.pEta_ch_batt
                         - model.vDch_Batt[i, t - 1] / model.pEta_dch_batt
                 )
@@ -759,9 +779,9 @@ class V2G:
 
             .. math::
 
-                SOC_{i,t} \leq pBus\_batt\_cap_i
+                SoC_{i,t} \leq pBus\_batt\_cap_i
             """
-            return model.vSOC_Batt[i, t] <= model.pBus_batt_cap[i]
+            return model.vSoC_Batt[i, t] <= model.pBus_batt_cap[i]
 
         @model.Constraint(model.Buses, model.Time)
         def soc_batt_min_constraint(model, i, t):
@@ -770,9 +790,9 @@ class V2G:
 
             .. math::
 
-                SOC_{i,t} \geq pBatt\_SoC\_min \cdot pBus\_batt\_cap_i
+                SoC_{i,t} \geq pBatt\_SoC\_min \cdot pBus\_batt\_cap_i
             """
-            return model.vSOC_Batt[i, t] >= model.pBatt_SOC_min * model.pBus_batt_cap[i]
+            return model.vSoC_Batt[i, t] >= model.pBatt_SoC_min * model.pBus_batt_cap[i]
 
         @model.Constraint(model.Buses, model.Time)
         def charge_batt_limit_upper_constraint(model, i, t):
@@ -796,6 +816,25 @@ class V2G:
             """
             return model.vDch_Batt[i, t] <= model.pC_rate_batt * model.pBus_batt_cap[i]
 
+        @model.Constraint(model.Buses)
+        def soc_batt_cyclic_constraint(model, i):
+            r"""
+            Cyclic SoC constraint for decentralized batteries.
+
+            Forces the battery state of charge at the end of the horizon
+            to equal the initial SoC, preventing end-of-horizon discharging.
+
+            .. math::
+
+                SoC_{i,T} + \eta_{ch} \cdot Ch_{i,T} - \frac{Dch_{i,T}}{\eta_{dch}}
+                = pBus\_batt\_cap_i \cdot pBatt\_SoC\_init
+            """
+            t_last = model.Time.last()
+            return (model.vSoC_Batt[i, t_last]
+                    + model.vCh_Batt[i, t_last] * model.pEta_ch_batt
+                    - model.vDch_Batt[i, t_last] / model.pEta_dch_batt
+                    == model.pBus_batt_cap[i] * model.pBatt_SoC_init)
+
         # --------------------------------------------
         # EV equations
         # --------------------------------------------
@@ -806,9 +845,9 @@ class V2G:
 
             .. math::
 
-                SOC_{ev,t} \geq SoC^{final}_{ev,t}
+                SoC_{ev,t} \geq SoC^{final}_{ev,t}
             """
-            return model.vSoc_EV[ev, t] >= model.pSOC_final[ev, t]
+            return model.vSoC_EV[ev, t] >= model.pSoC_final[ev, t]
 
         @model.Constraint(model.EVs, model.Time)
         def soc_charge_constraint(model, ev, t):
@@ -819,29 +858,29 @@ class V2G:
 
             .. math::
 
-                SOC_{ev,0} = pEV\_SoC\_init_{ev} \cdot pEV\_SoC\_max_{ev}
+                SoC_{ev,0} = pEV\_SoC\_init_{ev} \cdot pEV\_SoC\_max_{ev}
 
             - For subsequent time steps, SoC evolves considering charging, discharging,
               and slack variables to guarantee solvability:
 
             .. math::
 
-                SOC_{ev,t} = SOC_{ev,t-1}
+                SoC_{ev,t} = SoC_{ev,t-1}
                             + \eta_{ch,ev} \cdot Ch_{ev,t-1}
                             - \frac{Dch_{ev,t-1}}{\eta_{dch,ev}}
                             + SoC^n_{ev,t-1} - SoC^p_{ev,t-1} - SoC^{final}_{ev,t-1}, \quad t > 0
             """
             if t == model.Time.first():
-                return model.vSoc_EV[ev, t] == model.pEV_SOC_init[ev] * model.pEV_SOC_max[ev]
+                return model.vSoC_EV[ev, t] == model.pEV_SoC_init[ev] * model.pEV_SoC_max[ev]
             else:
                 return (
-                        model.vSoc_EV[ev, t] ==
-                        model.vSoc_EV[ev, t - 1]
+                        model.vSoC_EV[ev, t] ==
+                        model.vSoC_EV[ev, t - 1]
                         + model.vCh_EV[ev, t - 1] * model.pEta_ch[ev]
                         - model.vDch_EV[ev, t - 1] / model.pEta_dch[ev]
-                        + model.vSoc_n[ev, t - 1]
-                        - model.vSoc_p[ev, t - 1]
-                        - model.pSOC_final[ev, t - 1]
+                        + model.vSoC_n[ev, t - 1]
+                        - model.vSoC_p[ev, t - 1]
+                        - model.pSoC_final[ev, t - 1]
                 )
 
         @model.Constraint(model.EVs, model.Time)
@@ -867,15 +906,19 @@ class V2G:
             return model.vDch_EV[ev, t] <= model.pEVDch_max[ev] * sum(model.pAvailable[ev, i, t] for i in model.Buses)
 
         @model.Constraint(model.EVs, model.Time)
+        def soc_min_constraint(model, ev, t):
+            return model.vDch_EV[ev, t] <= model.pEta_dch[ev] * (model.vSoC_EV[ev, t] - (1-model.pDoD_V2G) * model.pEV_SoC_max[ev])
+
+        @model.Constraint(model.EVs, model.Time)
         def soc_max_constraint(model, ev, t):
             r"""
             Limit maximum SoC of EVs.
 
             .. math::
 
-                SOC_{ev,t} \leq SoC^{max}_{ev}
+                SoC_{ev,t} \leq SoC^{max}_{ev}
             """
-            return model.vSoc_EV[ev, t] <= model.pEV_SOC_max[ev]
+            return model.vSoC_EV[ev, t] <= model.pEV_SoC_max[ev]
 
         @model.Constraint()
         def ev_charging_invest_constraint(model):
@@ -897,8 +940,7 @@ class V2G:
 
                 \sum_{ev \in EVs} (Ch_{ev,t} + Dch_{ev,t}) \cdot Available_{ev,i,t} \leq ChCap_i
             """
-            available_evs = [ev for (ev, bus, time) in model.EV_Available_Locations
-                             if bus == i and time == t]
+            available_evs = self.evs_at_node_time.get((i, t), [])
             if not available_evs:
                 return Constraint.Skip
             return sum(model.vCh_EV[ev, t] + model.vDch_EV[ev, t] for ev in available_evs) <= model.vCh_cap_EV[i]
@@ -928,6 +970,27 @@ class V2G:
                 Ch_{ev,t} \leq M \cdot (1 - vbCh_{ev,t})
             """
             return model.vCh_EV[ev, t] <= model.pBigM * (1 - model.vbCh_EV[ev, t])
+
+        if self.ev_type == "V2G":
+
+            @model.Constraint(model.EVs)
+            def soc_v2g_cyclic_constraint(model, ev):
+                r"""
+                Cyclic SoC constraint for V2G-capable EVs.
+
+                Forces each EV's state of charge at the end of the horizon to equal its
+                initial SoC, preventing end-of-horizon discharging.
+
+                .. math::
+
+                    SoC_{ev,T} + \eta_{ch,ev} \cdot Ch_{ev,T} - \frac{Dch_{ev,T}}{\eta_{dch,ev}}
+                    = pEV\_SoC\_init_{ev} \cdot pEV\_SoC\_max_{ev}
+                """
+                t_last = model.Time.last()
+                return (model.vSoC_EV[ev, t_last]
+                        + model.vCh_EV[ev, t_last] * model.pEta_ch[ev]
+                        - model.vDch_EV[ev, t_last] / model.pEta_dch[ev]
+                        == model.pEV_SoC_init[ev] * model.pEV_SoC_max[ev])
 
         # --------------------------------------------
         # Generator Equations
@@ -1273,7 +1336,7 @@ class V2G:
                      for ev in model.EVs for t in model.Time))
 
         model.ens_cost = Expression(
-            expr=(sum(model.vSoc_n[ev, t] + model.vSoc_p[ev, t] for ev in model.EVs for t in model.Time)
+            expr=(sum(model.vSoC_n[ev, t] + model.vSoC_p[ev, t] for ev in model.EVs for t in model.Time)
                   + sum(model.vPNS[i, t] + model.vEPS[i, t] for i in model.Buses for t in model.Time)
                   ) * model.pPenality)
 
