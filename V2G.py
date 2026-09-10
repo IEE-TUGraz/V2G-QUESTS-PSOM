@@ -616,15 +616,26 @@ class V2G:
                               doc='Reactive Energy Import')
             # Note: No reactive power export variable since the is no reactive power production in the model
 
+            def undershoot_bounds(model, i, t):
+                # Gap between the preferred target (Vmin+delta)^2 and the true hard floor
+                # Vmin^2 - NOT delta^2, which only measures the gap in linear voltage, not
+                # in the squared quantity vCii actually lives in.
+                if i == model.slack_bus:
+                    return (0, 0)
+                return (0, (model.pVmin[i] + model.pSoft_Voltage_Limit) ** 2 - model.pVmin[i] ** 2)
+
+            def overshoot_bounds(model, i, t):
+                # Gap between the true hard ceiling Vmax^2 and the preferred target
+                # (Vmax-delta)^2, in the same squared units vCii uses.
+                if i == model.slack_bus:
+                    return (0, 0)
+                return (0, model.pVmax[i] ** 2 - (model.pVmax[i] - model.pSoft_Voltage_Limit) ** 2)
+
             model.vVoltage_Undershoot = Var(model.Buses, model.Time, domain=NonNegativeReals,
-                                            bounds=lambda model, i, t: (0,
-                                                                        model.pSoft_Voltage_Limit ** 2) if i != model.slack_bus else (
-                                                0, 0),
+                                            bounds=undershoot_bounds,
                                             doc='Slack variable for voltage magnitude undershoot')
             model.vVoltage_Overshoot = Var(model.Buses, model.Time, domain=NonNegativeReals,
-                                           bounds=lambda model, i, t: (0,
-                                                                       model.pSoft_Voltage_Limit ** 2) if i != model.slack_bus else (
-                                               0, 0),
+                                           bounds=overshoot_bounds,
                                            doc='Slack variable for voltage magnitude overshoot')
 
         elif self.dc_opf:
@@ -1140,8 +1151,7 @@ class V2G:
                 def voltage_soft_limit_min(model, i, t):
                     if i == model.slack_bus: return Constraint.Skip
                     # vVoltage_Undershoot >= (Vmin+delta)^2 - vCii  (zero if not violated)
-                    return model.vVoltage_Undershoot[i, t] >= (model.pVmin[i] + model.pSoft_Voltage_Limit) ** 2 - \
-                        model.vCii[i, t]
+                    return model.vVoltage_Undershoot[i, t] >= (model.pVmin[i] + model.pSoft_Voltage_Limit) ** 2 - model.vCii[i, t]
 
                 @model.Constraint(model.Buses, model.Time)
                 def voltage_soft_limit_max(model, i, t):
