@@ -860,30 +860,135 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
         else:
             return 0.05
 
+    fixed_line_types = {}
     standard_line_data = line_data.copy()
     standard_line_data['connected_to_slack'] = (standard_line_data['i'] == slack_node) | (
             standard_line_data['j'] == slack_node)
-    fixed_line_types = {}
 
     if case_study == 'Kanaleneiland':
-        # Set slack node parameters
-        slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 535].iloc[0]
         # Specify certain line and their corresponding types
-        # fixed_line_types = {frozenset(['Node_15', 'Node_30']): 185,
-        #                     frozenset(['Node_15', 'Node_11']): 185,}
+        fixed_line_types = {
+            frozenset(['Node_15', 'Node_67']): 850,
+            frozenset(['Node_15', 'Node_11']): 650,
+            frozenset(['Node_15', 'Node_30']): 404,
+
+            frozenset(['Node_15', 'Node_96']): 150,
+            frozenset(['Node_96', 'Node_47']): 150,
+            frozenset(['Node_47', 'Node_49']): 150,
+            frozenset(['Node_47', 'Node_49']): 150,
+
+            frozenset(['Node_49', 'Node_44']): 150,
+            frozenset(['Node_44', 'Node_93']): 150,
+
+            frozenset(['Node_49', 'Node_50']): 150,
+            frozenset(['Node_50', 'Node_89']): 150,
+            frozenset(['Node_89', 'Node_38']): 150,
+            frozenset(['Node_38', 'Node_35']): 150,
+            frozenset(['Node_35', 'Node_87']): 150,
+
+            frozenset(['Node_11', 'Node_2']): 120,
+            frozenset(['Node_2', 'Node_70']): 120,
+
+        }
+
+        # Set slack node parameters
+        slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 850].iloc[0]
         # Define types for the remaining lines (excluding slack node and fixed line) From the standard parameters excluding! the given types. Those get randomly assigned
-        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([535, 300, 240, 185, 150, 120, 35, 25])]
+        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin(
+            [850, 756, 650, 630, 535, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
+
+
     elif case_study == 'Aradas':
-        slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 240].iloc[0]
-        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([535, 300, 240, 185])]
+
+        fixed_line_types = {
+            # North
+            frozenset(['Node_35', 'Node_59']): 185,
+            frozenset(['Node_59', 'Node_37']): 185,
+            frozenset(['Node_37', 'Node_54']): 185,
+            frozenset(['Node_54', 'Node_61']): 185,
+
+            # South Middle
+            frozenset(['Node_7', 'Node_10']): 185,
+            frozenset(['Node_10', 'Node_19']): 185,
+            frozenset(['Node_19', 'Node_05']): 185,
+            frozenset(['Node_10', 'Node_01']): 185,
+            frozenset(['Node_1', 'Node_25']): 185,
+            frozenset(['Node_25', 'Node_39']): 185,
+
+            # South
+            frozenset(['Node_3', 'Node_32']): 185,
+            frozenset(['Node_32', 'Node_45']): 185,
+
+            # South-West
+            frozenset(['Node_7', 'Node_12']): 150,
+            frozenset(['Node_12', 'Node_14']): 150,
+            frozenset(['Node_14', 'Node_18']): 150,
+            frozenset(['Node_14', 'Node_34']): 150,
+            frozenset(['Node_34', 'Node_28']): 150,
+            frozenset(['Node_14', 'Node_15']): 150,
+            frozenset(['Node_15', 'Node_41']): 150,
+            frozenset(['Node_15', 'Node_22']): 150,
+            frozenset(['Node_15', 'Node_29']): 150,
+            frozenset(['Node_29', 'Node_16']): 150,
+            # North-East
+            frozenset(['Node_03', 'Node_38']): 404,
+
+            frozenset(['Node_38', 'Node_44']): 150,
+            frozenset(['Node_38', 'Node_52']): 150,
+            frozenset(['Node_38', 'Node_58']): 150,
+            frozenset(['Node_38', 'Node_47']): 150,
+            frozenset(['Node_38', 'Node_6']): 150,
+
+            frozenset(['Node_55', 'Node_21']): 185,
+            frozenset(['Node_30', 'Node_11']): 185,
+        }
+
+        slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 850].iloc[0]
+        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin(
+            [850, 756, 650, 630, 441, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
+
+
     elif case_study == 'Annelinn':
-        slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 240].iloc[0]
-        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([535, 300, 240, 185])]
+
+        fixed_line_types = {
+            # ----------------------------------------South
+            frozenset(['Node_38', 'Node_22']): 185,
+            frozenset(['Node_22', 'Node_24']): 185,
+
+            frozenset(['Node_38', 'Node_40']): 185,
+            frozenset(['Node_40', 'Node_41']): 185,
+            frozenset(['Node_41', 'Node_23']): 185,
+            frozenset(['Node_23', 'Node_26']): 185,
+
+            frozenset(['Node_38', 'Node_33']): 185,
+            frozenset(['Node_33', 'Node_39']): 185,
+            frozenset(['Node_39', 'Node_37']): 185,
+            # ----------------------------------------West
+            frozenset(['Node_25', 'Node_29']): 185,
+            frozenset(['Node_29', 'Node_14']): 185,
+            frozenset(['Node_14', 'Node_13']): 185,
+
+            frozenset(['Node_25', 'Node_27']): 185,
+
+            frozenset(['Node_25', 'Node_16']): 240,
+            frozenset(['Node_16', 'Node_28']): 240,
+            frozenset(['Node_28', 'Node_30']): 240,
+            frozenset(['Node_30', 'Node_31']): 240,
+            # ----------------------------------------Northwest
+            frozenset(['Node_43', 'Node_36']): 240,
+            frozenset(['Node_36', 'Node_42']): 240,
+            frozenset(['Node_42', 'Node_31']): 240,
+            frozenset(['Node_31', 'Node_17']): 240,
+
+        }
+        slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 850].iloc[0]
+        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin(
+            [850, 756, 650, 535, 441, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
 
     standard_line_data['fixed_type'] = standard_line_data.apply(
-        lambda r: fixed_line_types.get(frozenset([r['i'], r['j']])),
-        axis=1)
-
+        lambda r: fixed_line_types.get(frozenset([r['i'], r['j']]), None),  # Returns type number or None
+        axis=1
+    )
     params_by_type = standard_line_parameters_df.set_index('Type')
 
     def assign_params(row):
