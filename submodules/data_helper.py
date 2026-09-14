@@ -924,21 +924,27 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     ValueError
         If the case study is not recognized or required columns are missing.
     """
-    line_parameters_filepath = r"data_preparation\standard_line_parameter.xlsx"
     parameter_filepath = os.path.join('case_studies', 'standard_parameter.yml')
     parameter = load_config(parameter_filepath)
-    standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
-    standard_line_parameters_df.columns = standard_line_parameters_df.columns.str.strip()
 
     if case_study == 'Kanaleneiland':
+        line_parameters_filepath = r"data_preparation\standard_line_parameters_Kanaleneiland.xlsx"
+        standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
+        standard_line_parameters_df.columns = standard_line_parameters_df.columns.str.strip()
         line_data_filepath = os.path.join('data_preparation', 'Kanaleneiland', 'final_data', 'line_data.csv')
         node_data_filepath = os.path.join('data_preparation', 'Kanaleneiland', 'final_data', 'node_data.csv')
         slack_node = slack_bus
     elif case_study == 'Aradas':
+        line_parameters_filepath = r"data_preparation\standard_line_parameters_Aradas.xlsx"
+        standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
+        standard_line_parameters_df.columns = standard_line_parameters_df.columns.str.strip()
         line_data_filepath = os.path.join('data_preparation', 'Aradas', 'final_data', 'line_data.csv')
         node_data_filepath = os.path.join('data_preparation', 'Aradas', 'final_data', 'node_data.csv')
         slack_node = slack_bus
     elif case_study == 'Annelinn':
+        line_parameters_filepath = r"data_preparation\standard_line_parameters_Annelinn.xlsx"
+        standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
+        standard_line_parameters_df.columns = standard_line_parameters_df.columns.str.strip()
         line_data_filepath = os.path.join('data_preparation', 'Annelinn', 'final_data', 'line_data.csv')
         node_data_filepath = os.path.join('data_preparation', 'Annelinn', 'final_data', 'node_data.csv')
         slack_node = slack_bus

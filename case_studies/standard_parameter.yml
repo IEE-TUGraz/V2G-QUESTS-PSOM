@@ -7,8 +7,8 @@ SBase : 40 # System base power in MVA
 Min_Ang: -90 # Minimum angle of the nodes in degrees
 Max_Ang: 90 # Minimum and maximum angle of the nodes in degrees
 Max_AngDiff: 60 # Maximum angle difference between connected nodes in degrees
-Vmax: 1.1 # Upper voltage limit of the nodes in per unit
-Vmin: 0.9 # Lower voltage limit of the nodes in per unit
+Vmax: 1.05 # Upper voltage limit of the nodes in per unit
+Vmin: 0.95 # Lower voltage limit of the nodes in per unit
 
 # Shunt parameters of the nodes
 Gs: 0 # Conductance of the shunt elements
