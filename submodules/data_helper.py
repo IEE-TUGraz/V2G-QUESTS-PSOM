@@ -470,6 +470,7 @@ def load_capacity_data(case_study: str, num_t: int, start_t: int, enable_pv: boo
             f"Unknown case study: {case_study}. Please choose from 'Kanaleneiland', 'Aradas', or 'Annelinn'.")
 
     # Load the data
+
     capacity_data_pv_df = pd.read_csv(capacity_pv_filepath, sep=',', skiprows=3)
     capacity_data_pv_df = safe_slice(capacity_data_pv_df, start_t, num_t)[["electricity"]]
     if not enable_pv:
@@ -924,25 +925,26 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     ValueError
         If the case study is not recognized or required columns are missing.
     """
+
     parameter_filepath = os.path.join('case_studies', 'standard_parameter.yml')
     parameter = load_config(parameter_filepath)
 
     if case_study == 'Kanaleneiland':
-        line_parameters_filepath = r"data_preparation\standard_line_parameters_Kanaleneiland.xlsx"
+        line_parameters_filepath = r"C:\GIT\V2G-QUESTS\data_preparation\standard_line_parameters_Kanaleneiland.xlsx"
         standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
         standard_line_parameters_df.columns = standard_line_parameters_df.columns.str.strip()
         line_data_filepath = os.path.join('data_preparation', 'Kanaleneiland', 'final_data', 'line_data.csv')
         node_data_filepath = os.path.join('data_preparation', 'Kanaleneiland', 'final_data', 'node_data.csv')
         slack_node = slack_bus
     elif case_study == 'Aradas':
-        line_parameters_filepath = r"data_preparation\standard_line_parameters_Aradas.xlsx"
+        line_parameters_filepath = r"C:\GIT\V2G-QUESTS\data_preparation\standard_line_parameters_Aradas.xlsx"
         standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
         standard_line_parameters_df.columns = standard_line_parameters_df.columns.str.strip()
         line_data_filepath = os.path.join('data_preparation', 'Aradas', 'final_data', 'line_data.csv')
         node_data_filepath = os.path.join('data_preparation', 'Aradas', 'final_data', 'node_data.csv')
         slack_node = slack_bus
     elif case_study == 'Annelinn':
-        line_parameters_filepath = r"data_preparation\standard_line_parameters_Annelinn.xlsx"
+        line_parameters_filepath = r"C:\GIT\V2G-QUESTS\data_preparation\standard_line_parameters_Annelinn.xlsx"
         standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
         standard_line_parameters_df.columns = standard_line_parameters_df.columns.str.strip()
         line_data_filepath = os.path.join('data_preparation', 'Annelinn', 'final_data', 'line_data.csv')
@@ -1026,33 +1028,42 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     if case_study == 'Kanaleneiland':
         # Specify certain line and their corresponding types
         fixed_line_types = {
-            frozenset(['Node_15', 'Node_67']): 850,
-            frozenset(['Node_15', 'Node_11']): 650,
-            frozenset(['Node_15', 'Node_30']): 404,
+            frozenset(['Node_15', 'Node_11']): 630,
+            frozenset(['Node_15', 'Node_30']): 300,
 
-            frozenset(['Node_15', 'Node_96']): 150,
-            frozenset(['Node_96', 'Node_47']): 150,
-            frozenset(['Node_47', 'Node_49']): 150,
-            frozenset(['Node_47', 'Node_49']): 150,
+            frozenset(['Node_11', 'Node_8']): 535,
+            frozenset(['Node_8', 'Node_75']): 535,
+            frozenset(['Node_4', 'Node_1']): 535,
+            frozenset(['Node_1', 'Node_68']): 535,
+            frozenset(['Node_68', 'Node_0']): 535,
+            frozenset(['Node_0', 'Node_69']): 535,
 
-            frozenset(['Node_49', 'Node_44']): 150,
-            frozenset(['Node_44', 'Node_93']): 150,
+            frozenset(['Node_15', 'Node_96']): 240,
+            frozenset(['Node_96', 'Node_47']): 240,
+            frozenset(['Node_47', 'Node_49']): 240,
+            frozenset(['Node_47', 'Node_49']): 240,
 
-            frozenset(['Node_49', 'Node_50']): 150,
-            frozenset(['Node_50', 'Node_89']): 150,
-            frozenset(['Node_89', 'Node_38']): 150,
-            frozenset(['Node_38', 'Node_35']): 150,
-            frozenset(['Node_35', 'Node_87']): 150,
+            frozenset(['Node_49', 'Node_44']): 240,
+            frozenset(['Node_44', 'Node_93']): 240,
 
-            frozenset(['Node_11', 'Node_2']): 120,
-            frozenset(['Node_2', 'Node_70']): 120,
+            frozenset(['Node_49', 'Node_50']): 240,
+            frozenset(['Node_50', 'Node_89']): 240,
+            frozenset(['Node_89', 'Node_38']): 240,
+            frozenset(['Node_38', 'Node_35']): 240,
+            frozenset(['Node_35', 'Node_87']): 240,
+
+            frozenset(['Node_11', 'Node_14']): 535,
+            frozenset(['Node_14', 'Node_79']): 535,
+
+            frozenset(['Node_11', 'Node_2']): 185,
+            frozenset(['Node_2', 'Node_70']): 185,
 
         }
 
         # Set slack node parameters
-        slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 850].iloc[0]
+        slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 921].iloc[0]
         # Define types for the remaining lines (excluding slack node and fixed line) From the standard parameters excluding! the given types. Those get randomly assigned
-        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([850, 756, 650, 630, 535, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
+        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([921, 850, 756, 650, 630, 535, 404, 300, 240, 185, 150, 120])]
 
 
     elif case_study == 'Aradas':
@@ -1101,12 +1112,14 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
         }
 
         slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] ==850].iloc[0]
-        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([850, 756, 650, 630, 441, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
+        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([850, 756, 650, 630, 534, 404, 300, 240, 185, 150, 120])]
 
 
     elif case_study == 'Annelinn':
 
         fixed_line_types = {
+
+            frozenset(['Node_43', 'Node_25']): 535,
             #----------------------------------------South
             frozenset(['Node_38', 'Node_22']): 185,
             frozenset(['Node_22', 'Node_24']): 185,
@@ -1119,7 +1132,7 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
             frozenset(['Node_38', 'Node_33']): 185,
             frozenset(['Node_33', 'Node_39']): 185,
             frozenset(['Node_39', 'Node_37']): 185,
-            # ----------------------------------------West
+            # ----------------------------------------Northwest
             frozenset(['Node_25', 'Node_29']): 185,
             frozenset(['Node_29', 'Node_14']): 185,
             frozenset(['Node_14', 'Node_13']): 185,
@@ -1130,7 +1143,7 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
             frozenset(['Node_16', 'Node_28']): 240,
             frozenset(['Node_28', 'Node_30']): 240,
             frozenset(['Node_30', 'Node_31']): 240,
-            # ----------------------------------------Northwest
+            # ----------------------------------------North-Northwest
             frozenset(['Node_43', 'Node_36']): 240,
             frozenset(['Node_36', 'Node_42']): 240,
             frozenset(['Node_42', 'Node_31']): 240,
@@ -1138,7 +1151,7 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
 
         }
         slack_node_params = standard_line_parameters_df[standard_line_parameters_df['Type'] == 850].iloc[0]
-        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([850, 756, 650, 535, 441, 404, 300, 240, 185, 150, 120, 95, 70, 50, 35, 25])]
+        other_types = standard_line_parameters_df[~standard_line_parameters_df['Type'].isin([921, 850, 756, 650, 535, 441, 404, 300, 240, 185, 150, 120])]
 
     standard_line_data['fixed_type'] = standard_line_data.apply(
         lambda r: fixed_line_types.get(frozenset([r['i'], r['j']]), None),  # Returns type number or None
@@ -1257,4 +1270,3 @@ def load_distributed_battery_data():
     }])
 
     return battery_data_df
-

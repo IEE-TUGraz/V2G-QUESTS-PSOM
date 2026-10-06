@@ -433,7 +433,6 @@ class SystemData:
             index=False
         )
 
-        print('Added EV demand and variant data. Sample of enriched EV table:')
         return evs_df
 
     def _apply_uc_dumb_charging_demand(self, real_fleet_df: pd.DataFrame) -> None:
