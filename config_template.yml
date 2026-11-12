@@ -1,15 +1,21 @@
 # Solver Options
 enable_rMIP: true # Enable or disable the relaxed MIP formulation and solving of the model. true/false
 MIP_Gap : 0.0001 # MIP optimality gap for the solver (e.g.: 0.001 = 0.10%)
+Gurobi_options: # Gurobi parameters applied to every solve (any Gurobi parameter name can be added)
+  BarHomogeneous: 1 # Homogeneous barrier algorithm, more robust for numerically difficult SOCPs
+  NumericFocus: 3 # Highest numerical care
+  BarConvTol: 1.0e-6 # Barrier convergence tolerance
+
+Big_M: 1.0e3 # Big-M constant linking the charge/discharge binaries to the charging and discharging power
 
 # Scenario configuration
 case_study: Annelinn # Kanaleneiland, Aradas, Annelinn
 scenario: s0 # s0, s1, s2, s3, s4, s5 # Note s5 only uses one dummy ev without demand and is only used to model base demand behavior.
-LEGO_GPT_path: C:\GIT\LEGO-GPT\LEGO_GPT.py
-LEGO_GPT_env_path: C:\Users\Stephan\anaconda3\envs\LEGO_GPT_env\python.exe
+LEGO_GPT_path: path\to\LEGO_GPT.py # LEGO-GPT visualization tool (branch V2G-PSOM of https://github.com/IEE-TUGraz/LEGO-GPT), used by plot_network()
+LEGO_GPT_env_path: path\to\LEGO_GPT_env\python.exe # Python interpreter of the environment created from LEGO-GPT's environment.yml (LEGO_GPT_env)
 start_t: 1000 # Start time of the scenario
 num_t: 4 # Number of time steps in the scenario
-year: 2035 # 2035, 2040 or 2050 # For the V2G scenarios only 2040 was considered
+year: 2035 # 2035, 2040 or 2050 # For the V2G-QUESTS scenarios only 2035 was considered
 
 # Grid configuration
 dc_opf: false # true for DC OPF, false for AC OPF
@@ -17,12 +23,19 @@ slack_bus: Node_43 # Node_67 for Kanaleneiland, Node_20 for Aradas, Node_43 for 
 # Voltage soft limits
 Enable_Soft_Voltage_Limits: false # Enable or disable soft voltage limits [true/false]
 V_soft_limit: 0.05 # Soft voltage limit parameter in p.u. from the hard voltage limits e.g.: Vmax=1.05 p.u.,V_soft_limit=0.05 p.u. then the soft voltage limit is 1.05 p.u.
-# SOCP relaxation exactness tightening
-Enable_SOCP_Exactness_Penalty: false # Enable or disable the SOCP relaxation exactness tightening pass [true/false]
-SOCP_exactness_epsilon: 1.0e-5 # Absolute tolerance on the SOCP relaxation gap (vCii_i*vCii_j - vCij^2 - vSij^2), in p.u.^2
+
 # Line soft limits
 Enable_Soft_Line_Limits: false # Enable or disable soft line limits [true/false]
 Line_soft_limit: 0.8  # Soft line limit parameter in percentage from the hard line limits e.g.: Line limit=100 MW, Line_soft_limit=0.8 then the soft line limit is 80 MW.
+
+# SOCP relaxation exactness tightening
+Enable_SOCP_Exactness_Penalty: false # Enable or disable the iterative penalty-CCP SOCP exactness tightening [true/false]
+SOCP_exactness_epsilon: 1.0e-5 # Absolute tolerance on the SOCP relaxation gap (vCii_i*vCii_j - vCij^2 - vSij^2), in p.u.^2
+CCP_tau_init: 1.0e3 # Initial penalty on the CCP exactness slack in EUR/p.u.^2
+CCP_tau_mult: 10.0 # Factor the CCP penalty is multiplied with after every iteration
+CCP_tau_max: 1.0e7 # Upper cap on the CCP penalty in EUR/p.u.^2
+CCP_max_iter: 40 # Maximum number of CCP iterations after the first solve
+
 
 # Enable or disable generation sources true/false
 enable_pv: true # [true/false]
@@ -32,7 +45,7 @@ pBatt_cap: 0 # Total decentral storage capacity for the region in MWh
 
 # Electric Vehicle configuration
 ev_type: V2G # Global vehicle type applied to every vehicle in the fleet: 'EV' (no discharge capability), 'V2G' (bidirectional charging/discharging), or 'UC' (uncontrolled/dumb charging - 'scenario' still selects the real fleet behavior pattern, but the optimizer only ever sees a single inert placeholder vehicle; the resulting dumb-charging demand is simulated and added to the nodal demand automatically in the same run, see SystemData._apply_uc_dumb_charging_demand)
-pCharge_Invest: 1.3e-3 # Public charger invest per EV in MW
+pCharge_Invest: 1.3e-3 # Maximum public charger invest per EV in MW
 pDoD_V2G: 0.2 # Depth of discharge for the EV battery in p.u. during V2G operation (e.g.: 0.2 = 20% of the battery capacity can be used for V2G operation)
 
 # SOCP relaxation configuration
@@ -40,5 +53,8 @@ pQfactor: 0.33 # reactive Power to active power demand factor for SOCP relaxatio
 pV_slack: 1.05 # Voltage at the slack bus in p.u. for SOCP relaxation
 
 # Cost factors
-pPenality: 10000 # Penality cost factor for power non served and excess power served in €/MWh applied for node and EV slack variables
+pPenality: 100000 # Penality cost factor for power non served and excess power served in €/MWh applied for node and EV slack variables
 pCh_Inf_Cost: 1 # Cost factor for each installed charging infrastructure in €/MW (Set to 1 as we want to insensitive charging infrastructure installation)
+pExport_Reward: 1.0e-3 # Small reward for exported energy in €/MWh, so exporting is strictly preferred over dissipating surplus power in relaxed line losses
+Line_soft_penalty_factor: 0.1 # Penalty for line loading above the soft line limit, as a fraction of pPenality
+V_soft_penalty_factor: 0.052 # Penalty for voltage outside the soft voltage band, as a fraction of pPenality

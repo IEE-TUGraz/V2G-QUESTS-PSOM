@@ -3,16 +3,16 @@ channels:
   - conda-forge
   - defaults
 dependencies:
-  # Core environment
-  - gurobi::gurobi=13.0.0
+  # Core environment (versions used for the published results)
+  - gurobi::gurobi=13.0.0  # requires a valid Gurobi license
   - python=3.12.2
-  - numpy
+  - numpy=2.5.1
   - pandas=2.2.3
-  - pyomo
-  - plotly
+  - pyomo=6.10.1
+  - plotly=6.6.0
   - pyyaml=6.0.2
   - openpyxl=3.1.5
-  - geopy
+  - geopy=2.5.0
   - pip  # needed for pip installs below
   # Sphinx core and extensions
   - sphinx=8.2.3

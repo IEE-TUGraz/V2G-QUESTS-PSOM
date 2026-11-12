@@ -120,10 +120,24 @@ class V2G:
         self.pSoft_Voltage_Limit = config.get('V_soft_limit')
         self.pEnable_SOCP_Exactness_Penalty = config.get('Enable_SOCP_Exactness_Penalty', False)
         self.pSOCP_Exactness_Epsilon = float(config.get('SOCP_exactness_epsilon', 1e-4))
+        # Penalty convex-concave procedure (Lipp & Boyd 2016) schedule for the exactness tightening
+        self.pCCP_Tau_Init = float(config.get('CCP_tau_init', 1.0e3))
+        self.pCCP_Tau_Mult = float(config.get('CCP_tau_mult', 10.0))
+        self.pCCP_Tau_Max = float(config.get('CCP_tau_max', 1.0e7))
+        self.pCCP_Max_Iter = int(config.get('CCP_max_iter', 20))
+        # Modelling and solver constants (defaults are the values used for the published results)
+        self.pBigM = float(config.get('Big_M', 1.0e5))
+        self.pExport_Reward = float(config.get('pExport_Reward', 1.0e-3))
+        self.pSoft_Line_Penalty_Factor = float(config.get('Line_soft_penalty_factor', 0.1))
+        self.pSoft_Voltage_Penalty_Factor = float(config.get('V_soft_penalty_factor', 0.052))
+        self.gurobi_options = config.get('Gurobi_options') or {'BarHomogeneous': 1, 'NumericFocus': 3,
+                                                               'BarConvTol': 1.0e-6}
 
         # Initialize placeholders for the Pyomo model and solver results
         self.model = None  # Pyomo model object
         self.results = None  # Pyomo results object
+        self.solution_loaded = False  # True once a (possibly non-optimal) solution is loaded
+        self.run_status = 'not_solved'  # Overall solve outcome, set by solve_model
 
     def get_data(self):
         """
@@ -397,7 +411,7 @@ class V2G:
         # General Parameters
         # --------------------------------------------
         model.add_component('pBigM',
-                            Param(initialize=1e5, domain=NonNegativeReals, doc='Big M constant for linearization'))
+                            Param(initialize=self.pBigM, domain=NonNegativeReals, doc='Big M constant for linearization'))
 
         for c in self.buses_df.columns:
             if c not in ['id']:
@@ -453,29 +467,33 @@ class V2G:
                 model.add_component('pSoft_Voltage_Limit', Param(initialize=0, domain=NonNegativeReals,
                                                                  doc='Soft limit for the SOCP voltage magnitude constraints (set to 0 if soft limits are disabled)'))
 
-        if self.pEnable_SOCP_Exactness_Penalty:
-            # Canonical (undirected) branch set: one entry per node pair, used to avoid
-            # imposing the exactness tightening constraint twice on mirrored branches.
-            model.CanonicalBranches = Set(dimen=2, initialize=[
-                (i, j) for (i, j) in dict.fromkeys(self.branches_df.index) if i < j
-            ], doc='One representative direction per undirected branch, used for SOCP exactness tightening')
+            if self.pEnable_SOCP_Exactness_Penalty:
+                # Canonical (undirected) branch set: one entry per node pair, used to avoid
+                # imposing the exactness tightening constraint twice on mirrored branches.
+                model.CanonicalBranches = Set(dimen=2, initialize=[
+                    (i, j) for (i, j) in dict.fromkeys(self.branches_df.index) if i < j
+                ], doc='One representative direction per undirected branch, used for SOCP exactness tightening')
 
-            model.add_component('pSOCP_Exactness_Epsilon',
-                                Param(initialize=self.pSOCP_Exactness_Epsilon, domain=NonNegativeReals,
-                                      doc='Absolute tolerance on the SOCP relaxation gap'
-                                          ' (vCii_i*vCii_j - vCij^2 - vSij^2), in p.u.^2'))
+                model.add_component('pSOCP_Exactness_Epsilon',
+                                    Param(initialize=self.pSOCP_Exactness_Epsilon, domain=NonNegativeReals,
+                                          doc='Absolute tolerance on the SOCP relaxation gap'
+                                              ' (vCii_i*vCii_j - vCij^2 - vSij^2), in p.u.^2'))
 
-            # Linearization point (previous solved values) for the convex majorant of the bilinear gap term.
-            # Populated from a first, untightened solve and then used to build a global convex over-estimator of the (nonconvex) SOCP relaxation gap.
+                # Linearization point (previous solved values) for the convex majorant of the
+                # bilinear gap term. Populated from a first, untightened solve and then used to
+                # build a global convex over-estimator of the (nonconvex) SOCP relaxation gap.
+                model.pCii_lin = Param(model.Buses, model.Time, initialize=float(self.pV_slack) ** 2,
+                                       mutable=True,
+                                       doc='Linearization point for vCii used in the SOCP exactness majorant')
+                model.pCij_lin = Param(model.CanonicalBranches, model.Time, initialize=float(self.pV_slack) ** 2,
+                                       mutable=True,
+                                       doc='Linearization point for vCij used in the SOCP exactness majorant')
+                model.pSij_lin = Param(model.CanonicalBranches, model.Time, initialize=0.0, mutable=True,
+                                       doc='Linearization point for vSij used in the SOCP exactness majorant')
 
-            model.pCii_lin = Param(model.Buses, model.Time, initialize=float(self.pV_slack) ** 2,
-                                   mutable=True,
-                                   doc='Linearization point for vCii used in the SOCP exactness majorant')
-            model.pCij_lin = Param(model.CanonicalBranches, model.Time, initialize=float(self.pV_slack) ** 2,
-                                   mutable=True,
-                                   doc='Linearization point for vCij used in the SOCP exactness majorant')
-            model.pSij_lin = Param(model.CanonicalBranches, model.Time, initialize=0.0, mutable=True,
-                                   doc='Linearization point for vSij used in the SOCP exactness majorant')
+                # Penalty weight on the majorant slack, raised every CCP iteration.
+                model.pCCP_Tau = Param(initialize=self.pCCP_Tau_Init, mutable=True, domain=NonNegativeReals,
+                                       doc='Penalty-CCP weight on the SOCP exactness slack in EUR/p.u.^2')
         # --------------------------------------------
         # Generator Parameters
         # --------------------------------------------
@@ -588,7 +606,9 @@ class V2G:
         model.vEPS = Var(model.Buses, model.Time, domain=NonNegativeReals,
                          doc='Slack variable for excess active power at buses')
         if self.pEnable_Soft_Line_Limits:
+            # Overload above the soft limit is capped at the hard line limit
             model.vLineOverload = Var(model.Branches, model.Time, domain=NonNegativeReals,
+                                      bounds=lambda model, i, j, t: (0, model.pPmax_line[i, j] * (1 - model.pSoft_Line_Limit)),
                                       doc='Slack variable for line overloads')
         # --------------------------------------------
         # EV Variables
@@ -682,6 +702,10 @@ class V2G:
                                            bounds=overshoot_bounds,
                                            doc='Slack variable for voltage magnitude overshoot')
 
+            if self.pEnable_SOCP_Exactness_Penalty:
+                model.vSOCP_Slack = Var(model.CanonicalBranches, model.Time, domain=NonNegativeReals,
+                                        doc='Penalty-CCP slack on the SOCP exactness majorant in p.u.^2')
+
         elif self.dc_opf:
             def theta_bounds(model, i, t):
                 return (model.pMin_Ang[i], model.pMax_Ang[i])
@@ -697,22 +721,33 @@ class V2G:
         # --------------------------------------------
         if self.pEnable_Soft_Line_Limits:
             @model.Constraint(model.Branches, model.Time)
-            def thermal_constraint(model, i, j, t):
+            def thermal_constraint_upper(model, i, j, t):
                 r"""
-                Thermal limit constraint for active power flow on branch :math:`(i, j)`.
-
-                Ensures that the active power flow does not exceed the thermal capacity of the line:
+                Soft thermal limit for active power flow on branch :math:`(i, j)` in flow direction.
 
                 .. math::
 
-                    vLineP_{ij,t} \leq P^{\max}_{ij}
+                    vLineP_{ij,t} \leq P^{\max}_{ij} \cdot soft + vLineOverload_{ij,t}
 
                 """
                 return model.vLineP[(i, j), t] <= model.pPmax_line[i, j] * model.pSoft_Line_Limit + model.vLineOverload[
                     (i, j), t]
+
+            @model.Constraint(model.Branches, model.Time)
+            def thermal_constraint_lower(model, i, j, t):
+                r"""
+                Soft thermal limit for active power flow on branch :math:`(i, j)` against flow direction.
+
+                .. math::
+
+                    vLineP_{ij,t} \geq -(P^{\max}_{ij} \cdot soft + vLineOverload_{ij,t})
+
+                """
+                return model.vLineP[(i, j), t] >= -(
+                        model.pPmax_line[i, j] * model.pSoft_Line_Limit + model.vLineOverload[(i, j), t])
         else:
             @model.Constraint(model.Branches, model.Time)
-            def thermal_constraint(model, i, j, t):
+            def thermal_constraint_upper(model, i, j, t):
                 r"""
                 Thermal limit constraint for active power flow on branch :math:`(i, j)`.
 
@@ -724,6 +759,18 @@ class V2G:
 
                 """
                 return model.vLineP[(i, j), t] <= model.pPmax_line[i, j]
+
+            @model.Constraint(model.Branches, model.Time)
+            def thermal_constraint_lower(model, i, j, t):
+                r"""
+                Thermal limit constraint for active power flow against flow direction.
+
+                .. math::
+
+                    vLineP_{ij,t} \geq -P^{\max}_{ij}
+
+                """
+                return model.vLineP[(i, j), t] >= -model.pPmax_line[i, j]
 
         @model.Constraint(model.Time)
         def energy_import_constraint(model, t):
@@ -1005,6 +1052,13 @@ class V2G:
                 Forces each EV's state of charge at the end of the horizon to equal its
                 initial SoC, preventing end-of-horizon discharging.
 
+                ``vSoC_EV[ev, t_last]`` reflects the SoC evolution only up through
+                ``t_last - 1``'s charge/discharge (see ``soc_charge_constraint``) - there is
+                no ``t_last + 1`` for the recursion to debit ``t_last``'s own action against.
+                Without including that last action here explicitly, it would be entirely free
+                (helps the objective, invisible to every SoC constraint), defeating the
+                constraint's purpose.
+
                 .. math::
 
                     SoC_{ev,T} + \eta_{ch,ev} \cdot Ch_{ev,T} - \frac{Dch_{ev,T}}{\eta_{dch,ev}}
@@ -1090,8 +1144,7 @@ class V2G:
                 if i == value(model.slack_bus):
                     return Constraint.Skip
 
-                available_evs = [ev for (ev, bus, time) in model.EV_Available_Locations
-                                 if bus == i and time == t]
+                available_evs = self.evs_at_node_time.get((i, t), [])
 
                 return (
                         - model.pDemand[t, i]
@@ -1170,8 +1223,7 @@ class V2G:
                 if i == value(model.slack_bus):
                     return Constraint.Skip
 
-                available_evs = [ev for (ev, bus, time) in model.EV_Available_Locations
-                                 if bus == i and time == t]
+                available_evs = self.evs_at_node_time.get((i, t), [])
                 return (
                         - model.pDemand[t, i]
                         - sum(model.vCh_EV[ev, t] for ev in available_evs)
@@ -1362,9 +1414,15 @@ class V2G:
                     term minus a convex term; linearizing the subtracted (convex) term at the previous
                     solved point :math:`(x_0, y_0, c_0, s_0)` yields a convex function that is a
                     *global* upper bound on the true gap (a first-order tangent plane always lies
-                    below a convex function). Enforcing this convex majorant :math:`\leq \varepsilon`
-                    therefore guarantees the true relaxation gap is also :math:`\leq \varepsilon` at
-                    any feasible point, without requiring further iteration.
+                    below a convex function). Wherever the slack :math:`\sigma` is zero, the true
+                    relaxation gap is therefore also :math:`\leq \varepsilon`.
+
+                    The majorant equals the true gap plus a squared distance to the linearization
+                    point, so a hard cap acts as a trust region and can be infeasible far from an
+                    exact point. The slack :math:`\sigma \geq 0` (penalized with ``pCCP_Tau`` in the
+                    objective) keeps every iteration feasible; :meth:`solve_model` re-linearizes at
+                    each new solution and raises ``pCCP_Tau`` (penalty CCP, Lipp & Boyd 2016) until
+                    the true gap is within :math:`\varepsilon` everywhere.
 
                     .. math::
 
@@ -1372,7 +1430,7 @@ class V2G:
                             \frac{(x_0-y_0)^2}{4} + c_0^2 + s_0^2
                             + \frac{x_0-y_0}{2}(x-x_0) - \frac{x_0-y_0}{2}(y-y_0)
                             + 2c_0(c-c_0) + 2s_0(s-s_0)
-                        \right] \leq \varepsilon
+                        \right] \leq \varepsilon + \sigma_{ij,t}
                     """
                     x, y = model.vCii[i, t], model.vCii[j, t]
                     c, s = model.vCij[i, j, t], model.vSij[i, j, t]
@@ -1383,15 +1441,17 @@ class V2G:
                              + (x0 - y0) / 2 * (x - x0) - (x0 - y0) / 2 * (y - y0)
                              + 2 * c0 * (c - c0) + 2 * s0 * (s - s0))
 
-                    return (x + y) ** 2 / 4 - b_lin <= model.pSOCP_Exactness_Epsilon
+                    return (x + y) ** 2 / 4 - b_lin <= model.pSOCP_Exactness_Epsilon + model.vSOCP_Slack[i, j, t]
 
                 # Inactive until a first (untightened) solve provides the linearization point.
                 model.socp_exactness_constraint.deactivate()
         # --------------------------------------------
         # Cost expressions and Objective-function
         # --------------------------------------------
+        # The small export reward makes exporting strictly better than dissipating surplus
+        # power in relaxed line losses, which would otherwise be free.
         model.cost_function = Expression(
-            expr=sum((model.vImpP[t]) * model.pElPrice[t] for t in model.Time))
+            expr=sum(model.vImpP[t] * model.pElPrice[t] - model.vExpP[t] * self.pExport_Reward for t in model.Time))
 
         model.ev_energy_cost = Expression(
             expr=sum(model.pElPrice[t] * (model.vCh_EV[ev, t] - model.vDch_EV[ev, t])
@@ -1409,7 +1469,7 @@ class V2G:
             model.soft_line_limits_penalty = Expression(
                 expr=(
                         sum(model.vLineOverload[(i, j), t] for (i, j) in model.Branches for t in
-                            model.Time) * 0.5 * model.pPenality
+                            model.Time) * self.pSoft_Line_Penalty_Factor * model.pPenality
                 )
             )
         else:
@@ -1421,11 +1481,23 @@ class V2G:
             model.soft_voltage_limits_penalty = Expression(
                 expr=(
                         sum(model.vVoltage_Undershoot[i, t] + model.vVoltage_Overshoot[i, t]
-                            for i in model.Buses for t in model.Time) * 0.1 * model.pPenality
+                            for i in model.Buses for t in model.Time) * self.pSoft_Voltage_Penalty_Factor * model.pPenality
                 )
             )
         else:
             model.soft_voltage_limits_penalty = Expression(
+                expr=0
+            )
+
+        # Penalty-CCP term; zero at the optimum while socp_exactness_constraint is inactive.
+        # Not a system cost - subtract it from obj when reporting costs.
+        if not self.dc_opf and self.pEnable_SOCP_Exactness_Penalty:
+            model.socp_ccp_penalty = Expression(
+                expr=model.pCCP_Tau * sum(model.vSOCP_Slack[i, j, t]
+                                          for (i, j) in model.CanonicalBranches for t in model.Time)
+            )
+        else:
+            model.socp_ccp_penalty = Expression(
                 expr=0
             )
 
@@ -1436,6 +1508,7 @@ class V2G:
                  + model.ev_energy_cost
                  + model.soft_line_limits_penalty
                  + model.soft_voltage_limits_penalty
+                 + model.socp_ccp_penalty
             , sense=minimize,
             doc=r"""
                 Total system cost objective, including electricity import, EV energy costs,
@@ -1443,15 +1516,17 @@ class V2G:
 
                 The objective function is the sum of four components:
 
-                1. **Electricity import cost:**
+                1. **Electricity import cost minus export reward:**
 
                     .. math::
 
-                        Cost_{import} = \sum_{t \in T} P^{imp}_t \cdot Price_t
+                        Cost_{import} = \sum_{t \in T} \left( P^{imp}_t \cdot Price_t - P^{exp}_t \cdot r_{exp} \right)
 
                     where:
-                    - \(P^{imp}_t\) = imported electricity at time t
+                    - \(P^{imp}_t\) / \(P^{exp}_t\) = imported / exported electricity at time t
                     - \(Price_t\) = electricity price at time t
+                    - \(r_{exp}\) = small export reward (``pExport_Reward``) that makes exporting
+                      strictly better than dissipating surplus power in relaxed line losses
 
                 2. **EV energy cost (charging minus discharging):**
 
@@ -1499,7 +1574,7 @@ class V2G:
 
                 where:
                 - \(Overload_{(i,j),t}\) = line loading slack variable for branch (i,j) at time t
-                - \(\alpha_{line}\) = weighting factor for line limit violations (here: 0.5)
+                - \(\alpha_{line}\) = weighting factor for line limit violations (``Line_soft_penalty_factor``)
                 - \(p_{pen}\) = global penalty factor
 
                 This term is only active if `pEnable_Soft_Line_Limits = True`.
@@ -1517,11 +1592,20 @@ class V2G:
                     where:
                     - \(V^{under}_{i,t}\) = voltage undershoot slack at bus i, time t
                     - \(V^{over}_{i,t}\) = voltage overshoot slack at bus i, time t
-                    - \(\alpha_{volt}\) = weighting factor for voltage violations (here: 0.1)
+                    - \(\alpha_{volt}\) = weighting factor for voltage violations (``V_soft_penalty_factor``)
                     - \(p_{pen}\) = global penalty factor
 
                     This term is only active if `pEnable_Soft_Voltage_Limits = True`.
                     It penalizes deviations from the soft voltage bounds encouraging the model to stay in tighter voltage bounds if possible.
+
+                7. **Penalty-CCP slack (only while tightening SOCP exactness):**
+
+                    .. math::
+
+                        Cost_{CCP} = \tau \cdot \sum_{(i,j) \in L^{canon}} \sum_{t \in T} \sigma_{ij,t}
+
+                    This term is an algorithmic device of the exactness tightening and is not a
+                    system cost; reported costs exclude it.
 
                 Overall, the objective function minimizes total system cost while allowing
                 prioritized relaxation of network constraints via weighted soft penalties.
@@ -1567,36 +1651,139 @@ class V2G:
               f"{value(model.pSOCP_Exactness_Epsilon):.6g}")
         return n_over
 
-    def _run_solver(self, solver):
+    def _solve_ok(self):
+        """Return True if the last solve terminated optimal."""
+        return (self.results.solver.status == SolverStatus.ok
+                and self.results.solver.termination_condition == TerminationCondition.optimal)
+
+    def _run_solver(self):
         """
         Run a single solve of ``self.model`` and report solver status.
 
+        A fresh ``gurobi_persistent`` instance is built for every solve: a persistent
+        solver does not pick up later changes to the Pyomo model (activated constraints,
+        changed mutable parameters, relaxed integrality) on its own. Solver parameters
+        are taken from ``Gurobi_options`` in ``config.yml``.
+
+        An optimal solution is always loaded into the model. A non-optimal solve
+        (e.g. numerical trouble) still loads Gurobi's solution if one exists
+        (``SolCount > 0``), so it can be exported for debugging or used as a CCP
+        starting point.
+
         Returns
         -------
-        None
+        bool
+            True if a solution (optimal or not) was loaded into the model.
         """
+        solver = SolverFactory('gurobi_persistent')
+        solver.set_instance(self.model, symbolic_solver_labels=True)
+        gurobi_model = solver._solver_model
+        for name, val in self.gurobi_options.items():
+            gurobi_model.setParam(name, val)
+
         if self.enable_rMIP:
             print('Solving model as a relaxed MIP (rMIP)')
         else:
             print('Solving model as a MIP')
-            solver.options['mipgap'] = self.MIP_Gap  # Set optimal MIP gap (e.g.: 0.0001 = 0.10%)
-
-        # load_solutions=False: an ambiguous/bad solver status (e.g. Gurobi's
-        # "infeasible or unbounded", which can come back as status=error through the
-        # file-based interface) makes Pyomo's default auto-load raise a ValueError
-        # from inside solve() itself, before this method ever regains control - which
-        # means the infeasibility diagnosis below never runs. Loading manually, only
-        # once we've confirmed the status is actually usable, avoids that.
+            gurobi_model.Params.MIPGap = self.MIP_Gap  # Set optimal MIP gap (e.g.: 0.0001 = 0.01%)
         self.results = solver.solve(self.model, tee=True, load_solutions=False)
 
         # Check solver status
-        if self.results.solver.status == SolverStatus.ok and self.results.solver.termination_condition == TerminationCondition.optimal:
+        if self._solve_ok():
             self.model.solutions.load_from(self.results)
             print("Solver found an optimal solution.")
-            print("Optimal cost: ", value(self.model.obj))
-        else:
-            print("Solver did not find an optimal solution. Status:", self.results.solver.status)
-            print("Solver termination condition:", self.results.solver.termination_condition)
+            print("Optimal cost (excl. SOCP CCP penalty): ",
+                  value(self.model.obj) - value(self.model.socp_ccp_penalty))
+            return True
+
+        print("Solver did not find an optimal solution. Status:", self.results.solver.status)
+        print("Solver termination condition:", self.results.solver.termination_condition)
+        if gurobi_model.SolCount > 0:
+            solver.load_vars()
+            print("Loaded the non-optimal solution Gurobi still holds (SolCount > 0). Cost (excl. SOCP CCP penalty): ",
+                  value(self.model.obj) - value(self.model.socp_ccp_penalty))
+            return True
+        return False
+
+    def _run_socp_ccp(self):
+        """
+        Enforce SOCP relaxation exactness with the penalty convex-concave procedure
+        (Lipp & Boyd 2016), starting from the already-solved first solution.
+
+        In MIP mode the charge/discharge binaries are fixed to the first solution so
+        that every iteration is a convex SOCP (and unfixed again at the end). Each
+        iteration re-linearizes ``socp_exactness_constraint`` at the current solution,
+        re-solves, and raises ``pCCP_Tau`` until the true gap is within epsilon
+        everywhere, a solve fails, or ``CCP_max_iter`` is reached. If an iteration
+        fails, the last good iterate is restored so it can still be exported.
+
+        Returns
+        -------
+        tuple
+            ``(n_over, failed_iter)`` - number of branch-timesteps still exceeding epsilon
+            at the returned solution, and the iteration that failed (``None`` if none did).
+        """
+        model = self.model
+
+        fixed_binaries = []
+        if not self.enable_rMIP:
+            for var in (model.vbCh_EV, model.vbCh_Batt):
+                for index in var:
+                    if not var[index].fixed and var[index].value is not None:
+                        var[index].fix(round(var[index].value))
+                        fixed_binaries.append(var[index])
+            print(f'Fixed {len(fixed_binaries)} charge/discharge binaries for the SOCP CCP iterations')
+
+        model.pCCP_Tau = self.pCCP_Tau_Init
+        model.socp_exactness_constraint.activate()
+        all_vars = list(model.component_data_objects(Var))
+        n_over = None
+        failed_iter = None
+
+        for k in range(1, self.pCCP_Max_Iter + 1):
+            # Snapshot of the last good iterate, restored if this iteration fails
+            snapshot = [v.value for v in all_vars]
+
+            for i in model.Buses:
+                for t in model.Time:
+                    model.pCii_lin[i, t] = value(model.vCii[i, t])
+            for (i, j) in model.CanonicalBranches:
+                for t in model.Time:
+                    model.pCij_lin[i, j, t] = value(model.vCij[i, j, t])
+                    model.pSij_lin[i, j, t] = value(model.vSij[i, j, t])
+
+            print(f'SOCP CCP iteration {k}/{self.pCCP_Max_Iter}, tau={value(model.pCCP_Tau):.3g}')
+            self._run_solver()
+            if not self._solve_ok():
+                for v, val in zip(all_vars, snapshot):
+                    v.set_value(val, skip_validation=True)
+                failed_iter = k
+                print(f'SOCP CCP iteration {k} did not reach optimal - stopping CCP and restoring '
+                      f'the last good iterate.')
+                break
+
+            slack_sum = sum(value(model.vSOCP_Slack[i, j, t])
+                            for (i, j) in model.CanonicalBranches for t in model.Time)
+            n_over = self._report_socp_gap_stats(f'CCP iteration {k}')
+            print(f'SOCP CCP iteration {k}: slack sum={slack_sum:.6g}, cost (excl. CCP penalty)='
+                  f'{value(model.obj) - value(model.socp_ccp_penalty):.6g}')
+
+            if n_over == 0:
+                print(f'SOCP CCP converged after {k} iteration(s): true gap within epsilon everywhere.')
+                break
+
+            model.pCCP_Tau = min(value(model.pCCP_Tau) * self.pCCP_Tau_Mult, self.pCCP_Tau_Max)
+
+        if failed_iter is not None and n_over is None:
+            # Failed in the first iteration: the restored solution is the initial one
+            n_over = self._report_socp_gap_stats('restored initial solution')
+        elif failed_iter is None and n_over > 0:
+            print('WARNING: SOCP CCP did not reach exactness - the last solution still violates the '
+                  'epsilon gap tolerance (see the gap statistics above).')
+
+        for var in fixed_binaries:
+            var.unfix()
+        return n_over, failed_iter
 
     def solve_model(self):
         """
@@ -1609,13 +1796,20 @@ class V2G:
         3. Checks the solver's status and termination condition.
            - If the solution is optimal, prints the optimal cost.
            - Otherwise, prints solver status and termination information.
-        4. If ``Enable_SOCP_Exactness_Penalty`` is set (SOCP formulation only), linearizes
-           the SOCP relaxation gap at the just-solved point, activates the convex majorant
-           ``socp_exactness_constraint``, and re-solves once. This second solve is
-           guaranteed to satisfy the true (nonconvex) relaxation gap within
-           ``SOCP_exactness_epsilon`` — see the constraint's docstring in
-           :meth:`create_model` for the derivation.
-        5. Iterates through the model's variables and optionally prints their values.
+        4. If ``Enable_SOCP_Exactness_Penalty`` is set (SOCP formulation only) and the
+           true relaxation gap exceeds ``SOCP_exactness_epsilon`` anywhere, runs a penalty
+           convex-concave procedure (Lipp & Boyd 2016): in MIP mode the charge/discharge
+           binaries are fixed to the first solution, ``socp_exactness_constraint`` is
+           activated, and the model is re-linearized at each new solution and re-solved
+           with ``pCCP_Tau`` multiplied by ``CCP_tau_mult`` (capped at ``CCP_tau_max``)
+           until the true gap is within epsilon everywhere or ``CCP_max_iter`` is reached.
+           The binaries are unfixed afterwards. See the constraint's docstring in
+           :meth:`create_model` for the derivation. A first solve that is not optimal but
+           returns a solution is used as the starting point as well.
+        5. Sets ``run_status`` to one of ``exact``, ``inexact_max_iter``,
+           ``initial_suboptimal``, ``ccp_failed_iter_<k>``, ``no_solution`` or
+           ``exactness_not_checked``.
+        6. Iterates through the model's variables and optionally prints their values.
 
         Notes
         -----
@@ -1629,51 +1823,50 @@ class V2G:
         """
 
         start_time = time.time()
-        # NumericFocus=3 and a loosened BarConvTol
 
-        solver = SolverFactory('gurobi_persistent')
-        solver.set_instance(self.model, symbolic_solver_labels=True)
-        gurobi_model = solver._solver_model
-        gurobi_model.Params.BarHomogeneous = -1
-        gurobi_model.Params.NumericFocus = 1
-        gurobi_model.Params.BarConvTol = 1e-6
+        # Relax integrality before any solver instance is built (see _run_solver)
         if self.enable_rMIP:
             TransformationFactory('core.relax_integer_vars').apply_to(self.model)
 
-        self._run_solver(solver)
+        self.solution_loaded = self._run_solver()
+        first_solve_ok = self._solve_ok()
+        n_over = None
+        failed_iter = None
 
-        first_solve_ok = (self.results.solver.status == SolverStatus.ok
-                           and self.results.solver.termination_condition == TerminationCondition.optimal)
-
-        if not first_solve_ok and self.pEnable_SOCP_Exactness_Penalty:
-            print('First solve did not reach optimal - skipping SOCP exactness tightening '
-                  '(nothing to linearize around; see the infeasibility diagnosis above).')
+        if not self.solution_loaded:
+            print('First solve returned no solution - skipping SOCP exactness tightening '
+                  '(nothing to linearize around).')
         elif not self.dc_opf and self.pEnable_SOCP_Exactness_Penalty:
+            if not first_solve_ok:
+                print('First solve did not reach optimal but returned a solution - continuing the '
+                      'SOCP exactness tightening from this (suboptimal) starting point.')
             n_over = self._report_socp_gap_stats('before tightening')
 
             if n_over == 0:
                 print('SOCP relaxation is already within epsilon everywhere - skipping tightening re-solve.')
             else:
-                print('Tightening SOCP relaxation exactness (single majorant pass)')
-                model = self.model
-                for i in model.Buses:
-                    for t in model.Time:
-                        model.pCii_lin[i, t] = value(model.vCii[i, t])
-                for (i, j) in model.CanonicalBranches:
-                    for t in model.Time:
-                        model.pCij_lin[i, j, t] = value(model.vCij[i, j, t])
-                        model.pSij_lin[i, j, t] = value(model.vSij[i, j, t])
-                model.socp_exactness_constraint.activate()
-                self._run_solver(solver)
+                n_over, failed_iter = self._run_socp_ccp()
 
-                self._report_socp_gap_stats('after tightening')
+        # Overall solve outcome
+        if not self.solution_loaded:
+            self.run_status = 'no_solution'
+        elif failed_iter is not None:
+            self.run_status = f'ccp_failed_iter_{failed_iter}'
+        elif not first_solve_ok:
+            self.run_status = 'initial_suboptimal'
+        elif n_over is None:
+            self.run_status = 'exactness_not_checked'
+        elif n_over > 0:
+            self.run_status = 'inexact_max_iter'
+        else:
+            self.run_status = 'exact'
 
         # Check variable values
         for var in self.model.component_objects(Var, active=False):
             for index in var:
                 print(f"Variable {var.name}:")
                 print(f"  {index} = {var[index].value}")
-        print('Pyomo model solved in', time.time() - start_time, 'seconds')
+        print(f'Pyomo model solved in {time.time() - start_time} seconds - run status: {self.run_status}')
 
     def export_results(self):
         """
@@ -1686,11 +1879,20 @@ class V2G:
         2. If the file already exists, it removes all existing tables before saving
            the new results.
         3. Maps model variables and solver outputs into structured tables.
+        4. If ``ev_type == "UC"``, additionally writes the precomputed per-EV
+           charging detail, per-node charging totals, and charging cost (known ahead
+           of the model run, since the optimizer only ever sees a single inert
+           placeholder vehicle under UC) into ``uc_ev_charging``,
+           ``uc_node_charging_total``, and ``uc_charging_cost`` tables in the same
+           database - see :meth:`SystemData._apply_uc_dumb_charging_demand`.
 
         Raises
         ------
         AttributeError
-            If ``results`` are not available (i.e., the model has not been solved yet).
+            If ``results`` are not available (i.e., the model has not been solved yet),
+            or if no solution was loaded. Non-optimal solutions (numerical trouble,
+            failed CCP iteration) are still exported, since they help finding errors;
+            ``run_status`` tells them apart.
 
         Returns
         -------
@@ -1698,7 +1900,15 @@ class V2G:
         """
 
         if self.results is None:
-            raise AttributeError("No results available to export.")
+            raise AttributeError("No results available to export - solve_model() has not run yet.")
+        if not self.solution_loaded:
+            raise AttributeError(
+                f"Cannot export results - no solution was loaded "
+                f"(status={self.results.solver.status}, "
+                f"termination_condition={self.results.solver.termination_condition})."
+            )
+        if self.run_status not in ('exact', 'exactness_not_checked'):
+            print(f"WARNING: exporting a solution with run status '{self.run_status}'.")
 
         filename = os.path.join("output", "result.sqlite")
 
@@ -1713,23 +1923,42 @@ class V2G:
 
         dh.model_to_sqlite(self.model, filename)
 
+        # Precomputed UC EV-charging results (known ahead of the model run, since the
+        # optimizer only ever sees a single inert placeholder vehicle under UC - see
+        # SystemData._apply_uc_dumb_charging_demand). Written under distinct table
+        # names, after model_to_sqlite so the cleanup above doesn't wipe them and they
+        # don't collide with the model's own (trivial, dummy-only) vCh_EV/vDch_EV/
+        # vSoC_EV tables.
+        if self.ev_type == "UC" and self.uc_ev_charging_df is not None:
+            with sqlite3.connect(filename) as conn:
+                self.uc_ev_charging_df.to_sql('uc_ev_charging', conn, if_exists='replace', index=False)
+                self.uc_node_charging_total_df.to_sql('uc_node_charging_total', conn, if_exists='replace', index=False)
+                self.uc_charging_cost_df.to_sql('uc_charging_cost', conn, if_exists='replace', index=False)
+            print('UC EV results written to result.sqlite '
+                  '(uc_ev_charging, uc_node_charging_total, uc_charging_cost)')
+
     def plot_network(self, input_only=False):
-
-        # Note: The plot_network function uses an external tool (LEGO-GPT) to plot the network
-
         """
         Plot the network based on the provided data and configuration.
 
-        This method visualizes the network topology, including buses, branches,
-        and optionally the solved model results. It uses the external tool LEGO-GPT
-        to generate plots in a separate environment. The LEGO-GPT toll is currently not available for the public.
+        With ``input_only=True`` the grid topology (buses and branches) is shown on a map
+        with plotly. Otherwise the solved results are opened in the interactive
+        visualization tool LEGO-GPT (V2G-QUESTS-PSOM version, branch ``V2G-PSOM`` of
+        https://github.com/IEE-TUGraz/LEGO-GPT), which reads ``output/result.sqlite``.
+
+        LEGO-GPT runs in its own conda environment: ``LEGO_GPT_path`` in ``config.yml``
+        points to ``LEGO_GPT.py`` and ``LEGO_GPT_env_path`` to the Python interpreter of
+        the environment created from LEGO-GPT's ``environment.yml``. LEGO-GPT is started
+        with its own folder as working directory and reads ``plot_config.yml``; a relative
+        ``input_dir`` there (default ``output``) is resolved against the V2G-QUESTS-PSOM
+        folder. The call blocks until the LEGO-GPT server is stopped (Ctrl+C).
 
         Parameters
         ----------
         input_only : bool, optional
             If True, only the input data (buses, branches, and nodes) are plotted.
-            If False, the method requires the model to be solved and plots results
-            as well. Defaults to False.
+            If False, the method requires the model to be solved and opens the results
+            in LEGO-GPT. Defaults to False.
 
         Raises
         ------
@@ -1737,25 +1966,38 @@ class V2G:
             If ``input_only`` is False and the model has not been solved yet
             (i.e., ``self.results`` is None).
 
-        Notes
-        -----
-        - When ``input_only`` is True, the method plots only the input data:
-          buses, branches, and node positions.
-        - When ``input_only`` is False, the method requires the solved model
-          and overlays results such as voltages, flows, and EV operations.
-        - Plots are generated using the external LEGO-GPT tool via a configuration
-          file (``plot_config.yml``) in a separate environment.
+        Returns
+        -------
+        None
         """
 
         if input_only:
             dh.plot_input_only(self.buses_df, self.branches_df)
-        else:
-            # check if model is available
-            if self.results is None:
-                raise ValueError('Model not solved yet! Please solve the model before plotting.')
+            return
 
-            # run LEGO-GPT in seperate environment
-            subprocess.run([self.lego_gpt_env_path, self.lego_gpt_path, "plot_config.yml"])
+        # check if model is available
+        if self.results is None:
+            raise ValueError('Model not solved yet! Please solve the model before plotting.')
+
+        lego_gpt_path = os.path.abspath(str(self.lego_gpt_path))
+        lego_gpt_env_path = str(self.lego_gpt_env_path)
+        plot_config_path = os.path.abspath("plot_config.yml")
+        missing = [f"{name} ({path})" for name, path in (('LEGO_GPT_path', lego_gpt_path),
+                                                          ('LEGO_GPT_env_path', lego_gpt_env_path),
+                                                          ('plot_config.yml', plot_config_path))
+                   if not os.path.isfile(path)]
+        if missing:
+            print('Skipping LEGO-GPT result plot - file(s) not found: ' + ', '.join(missing)
+                  + '. Set LEGO_GPT_path and LEGO_GPT_env_path in config.yml (see README).')
+            return
+
+        # Run LEGO-GPT in its own environment and folder, so its Dash assets are found
+        print('Starting LEGO-GPT - stop the server with Ctrl+C to finish.')
+        completed = subprocess.run([lego_gpt_env_path, lego_gpt_path, plot_config_path],
+                                   cwd=os.path.dirname(lego_gpt_path))
+        if completed.returncode not in (0, 1, 3221225786):  # 1 / 0xC000013A: stopped with Ctrl+C
+            print(f'LEGO-GPT exited with code {completed.returncode}. Check that LEGO_GPT_env_path '
+                  f"points to the environment created from LEGO-GPT's environment.yml.")
 
 
 if __name__ == '__main__':
@@ -1771,8 +2013,9 @@ if __name__ == '__main__':
         v2g.get_data()  # Load data from the database
         v2g.extract_generator_params()  # Extract generator data and generate parameters
         v2g.preprocess_data()  # Preprocess the data
-        # v2g.plot_network(input_only=True) # Plot the network with the input data. Not available in the public version
+        v2g.plot_network(input_only=True)  # Plot the grid topology of the input data
         v2g.create_model()  # Create the Pyomo model
         v2g.solve_model()  # Solve the Pyomo model
-        v2g.export_results()  # Export the results to a SQLite database
-        # v2g.plot_network() # Plot the network with the result data. Not available in the public version
+        if v2g.solution_loaded:
+            v2g.export_results()  # Export the results to a SQLite database
+            v2g.plot_network()  # Open the results in LEGO-GPT (see README)

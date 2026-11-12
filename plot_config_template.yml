@@ -1,20 +1,28 @@
-input_type: V2G # excel or sqlite
-input_dir: PATH_TO_OUTPUT_DIR
+input_type: V2G  # Only V2G-QUESTS-PSOM SQLite results are supported
+input_dir: output  # Folder containing result.sqlite, relative to the V2G-QUESTS-PSOM folder V2G.py runs in (or an absolute path)
 
+# Tables to load (V2G-QUESTS-PSOM result tables are mapped to these names by the data loader)
 tables:
-  - k
-  - i
-  - la
-  - vLineP
-  - pPmax_line
-  - lat
-  - lon
-  - PV_Buses
-  - Wind_Buses
-  - vProd_PV
-  - vProd_Wind
-  - vProd_Hydro
-  - vDch_Batt
+  - rp                # Single dummy period (V2G-QUESTS-PSOM has no representative periods)
+  - k                 # Time steps (Time)
+  - i                 # Nodes/buses (Buses)
+  - g                 # Generators (derived from gi)
+  - gi                # Generator-node mapping (PV_Buses, Wind_Buses, Hydro_Buses)
+  - la                # Lines/branches (Branches)
+  - vLineP            # Active power flow
+  - vLineQ            # Reactive power flow (optional)
+  - vGenP             # Generation (vProd_PV, vProd_Wind, vProd_Hydro)
+  - pDemand           # Nodal demand
+  - vSOCP_cii         # Voltage magnitude (from vCii)
+  - pPmax             # Line thermal limits (pPmax_line)
+  - vStIntraRes       # Battery state of charge (vSOC_Batt)
+  - coords            # Node coordinates (lat/lon)
+  - voltage_bounds    # Voltage bounds per node (Vmax/Vmin)
+  - ev                # Electric vehicles set
+  - ev_availability   # EV availability at nodes (pAvailable)
+  - vDchEV            # EV discharge
+  - vChEV             # EV charge
+  - vSocEV            # EV state of charge
 
 dropdown_options_y:
   - label: "Y: Dispatch"
@@ -40,29 +48,24 @@ map_options:
   pie_chart_min_radius: 8
   pie_chart_max_radius: 16
 
+  # Optional: CARTO now requires an API key to remove the watermark from the
+  # basemap tiles (both the live map and exported SVG/PDF/PNG). Get a free key
+  # at https://carto.com/ and paste it here. Leave empty to keep using the
+  # basemap without a key (tiles still work, just show CARTO's watermark).
+  carto_api_key: ""
+
   technology_colors:
     Wind: "#2ecc71"
     Solar: "#27ae60"
-    OtherRES: "#1e8449"
-    Offshore: "#145a32"
-    CSP: "#117a65"
-    Coal: "#c0392b"
-    Gas: "#e74c3c"
-    Oil: "#a93226"
-    OtherNoRES: "#922b21"
-    Nuclear: "#7b241c"
-    HS: "#3498db"
-    HPS: "#2e86c1"
     RoR: "#21618c"
+    Hydro: "#2878ad"
     BESS: "#7f8c8d"
+    "BESS Discharge": "#bdc3c7"
     V2G_charging: "#8e44ad"
     V2G_discharging: "#9b59b6"
     unknown: "#808080"
     no_generation: "#000000"
-    vres: "#2ecc71"
-    thermal: "#c0392b"
-    storage: "#7f8c8d"
-  
+
   cluster_options:
     cluster_radius: 60
     maxZoom: 16
@@ -79,13 +82,13 @@ graph_options:
 
   layout:
     xaxis:
-      domain: [0, 0.85]
+      domain: [ 0, 0.85 ]
       title:
         font:
           size: 18
           color: black
     yaxis:
-      domain: [0, 1]
+      domain: [ 0, 1 ]
       title:
         font:
           size: 18
@@ -107,23 +110,24 @@ graph_options:
     title:
       x: 0.5
   colors:
-  - "#2E86AB"
-  - "#F6C85F"
-  - "#6F4E7C"
-  - "#9FD356"
-  - "#CA3E47"
-  - "#FFA600"
-  - "#50514F"
-  - "#8E44AD"
-  - "#00B894"
-  - "#E17055"
-  - "#D63031"
-  - "#00A8FF"
-  - "#FAB1A0"
-  - "#6C5CE7"
-  - "#E84393"
-  - "#55EFC4"
-  - "#A29BFE"
-  - "#FD79A8"
-  - "#81ECEC"
-  - "#0984E3"
+    - "#2E86AB"
+    - "#F6C85F"
+    - "#6F4E7C"
+    - "#9FD356"
+    - "#CA3E47"
+    - "#FFA600"
+    - "#50514F"
+    - "#8E44AD"
+    - "#00B894"
+    - "#E17055"
+    - "#D63031"
+    - "#00A8FF"
+    - "#FAB1A0"
+    - "#6C5CE7"
+    - "#E84393"
+    - "#55EFC4"
+    - "#A29BFE"
+    - "#FD79A8"
+    - "#81ECEC"
+    - "#0984E3"
+    - "#2878ad"

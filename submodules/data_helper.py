@@ -930,21 +930,21 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     parameter = load_config(parameter_filepath)
 
     if case_study == 'Kanaleneiland':
-        line_parameters_filepath = r"C:\GIT\V2G-QUESTS\data_preparation\standard_line_parameters_Kanaleneiland.xlsx"
+        line_parameters_filepath = os.path.join('data_preparation', 'standard_line_parameters_Kanaleneiland.xlsx')
         standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
         standard_line_parameters_df.columns = standard_line_parameters_df.columns.str.strip()
         line_data_filepath = os.path.join('data_preparation', 'Kanaleneiland', 'final_data', 'line_data.csv')
         node_data_filepath = os.path.join('data_preparation', 'Kanaleneiland', 'final_data', 'node_data.csv')
         slack_node = slack_bus
     elif case_study == 'Aradas':
-        line_parameters_filepath = r"C:\GIT\V2G-QUESTS\data_preparation\standard_line_parameters_Aradas.xlsx"
+        line_parameters_filepath = os.path.join('data_preparation', 'standard_line_parameters_Aradas.xlsx')
         standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
         standard_line_parameters_df.columns = standard_line_parameters_df.columns.str.strip()
         line_data_filepath = os.path.join('data_preparation', 'Aradas', 'final_data', 'line_data.csv')
         node_data_filepath = os.path.join('data_preparation', 'Aradas', 'final_data', 'node_data.csv')
         slack_node = slack_bus
     elif case_study == 'Annelinn':
-        line_parameters_filepath = r"C:\GIT\V2G-QUESTS\data_preparation\standard_line_parameters_Annelinn.xlsx"
+        line_parameters_filepath = os.path.join('data_preparation', 'standard_line_parameters_Annelinn.xlsx')
         standard_line_parameters_df = pd.read_excel(line_parameters_filepath, sheet_name='line_parameters')
         standard_line_parameters_df.columns = standard_line_parameters_df.columns.str.strip()
         line_data_filepath = os.path.join('data_preparation', 'Annelinn', 'final_data', 'line_data.csv')
@@ -1177,7 +1177,7 @@ def load_bus_branch_demand_data(case_study: str, num_t: int, start_t: int, slack
     line_data['pRLine'] = (final_data['r'] / pSBase) * line_data['length_km']
     line_data['pXLine'] = (final_data['x'] / pSBase) * line_data['length_km']
     line_data['pSmax_line'] = final_data['Smax']
-    line_data['pPmax_line'] = 1 * final_data['Smax']
+    line_data['pPmax_line'] = parameter.get('Pmax_line_factor', 1.0) * final_data['Smax']
     line_data['pMin_AngDiff'] = math.radians(-parameter['Max_AngDiff'])
     line_data['pMax_AngDiff'] = math.radians(parameter['Max_AngDiff'])
     # Calculate pGLine and pBLine
@@ -1270,3 +1270,4 @@ def load_distributed_battery_data():
     }])
 
     return battery_data_df
+
